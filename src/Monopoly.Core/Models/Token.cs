@@ -10,12 +10,12 @@ namespace Monopoly.Core.Models
     public class Token
     {
         public TokenColor Color { get; }
-        public ISpace CurrentPosition { get; set; }
+       
 
-        public Token(TokenColor color, ISpace currentPosition)
+        public Token(TokenColor color)
         {
             Color = color;
-            CurrentPosition = currentPosition;
+            
         }
     }
 }

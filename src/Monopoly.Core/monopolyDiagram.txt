@@ -1,0 +1,251 @@
+classDiagram
+
+    class GameController {
+        +IBoard Board
+        +IDice Dice
+        +List~IPlayer~ Players
+        -Dictionary~IProperty, IPlayer~ _propertyOwners
+        -Dictionary~IPlayer, IToken~ _playerTokens
+        -Dictionary~IToken, ISpace~ _tokenPositions
+        -Dictionary~IPlayer, int~ _jailTurns
+        -int _currentPlayerIndex
+        +int houseAmount
+        +int hotelAmount
+        -int _doubleCount
+        -ICardDeck _chanceDeck
+        -ICardDeck _communityChestDeck
+        -bool _isGameOver
+        +Action~IToken, ISpace~ OnPlayerMoved
+        +Action~IPlayer~ OnTurnChanged
+        +Action~IPlayer~ OnPlayerMoneyChanged
+        +Action~IPlayer, ICard~ OnCardEffect
+        +Action~IPlayer~ OnPlayerBankrupt
+
+        +GameController(IBoard board, IDice dice, List~IPlayer~ players)
+        +InitializeBoard() void
+        +InitializeSpace() void
+        +InitializePath() void
+        +InitializePlayers(List~IPlayer~ players, List~IToken~ tokens) bool
+        +InitializeCardDecks() void
+        +GetCurrentPlayer() IPlayer
+        +StartGame() void
+        +EndGame() void
+        +RollDice() void
+        +Move(IToken token, int steps) void
+        +HandleLanding(IPlayer player) void
+        +EndTurn() void
+        +NextTurn() bool
+        +ShuffleCard(CardType cardType) void
+        +DrawCard(IPlayer player, CardType cardType) void
+        +ReturnCard(ICard card, CardType cardType) void
+        +SendMoney(IPlayer player, int amount) bool
+        +SendMoney(IPlayer player, int amount, IPlayer otherPlayer) bool
+        +ReceiveMoney(IPlayer player, int amount) void
+        +ReceiveMoney(IPlayer player, int amount, IPlayer otherPlayer) bool
+        +HandleBankruptcy(IPlayer player) bool
+        +BuyProperty(IPlayer player, IProperty property) bool
+        +SellProperty(IPlayer player, IProperty property) bool
+        +TradeProperty(IPlayer buyer, IPlayer seller, List~IProperty~ properties, int offer) bool
+        +GetPropertyOwner(IProperty property) IPlayer?
+        +HandleAuction(IProperty property) IPlayer
+        +HandleMortgage(IPlayer player, IProperty property) bool
+        +HandleMortgageRedemption(IPlayer player, IProperty property) bool
+        +BuyHouse(IPlayer player, IProperty property) bool
+        +BuyHotel(IPlayer player, IProperty property) bool
+        +SellHouse(IPlayer player, IProperty property) bool
+        +SellHotel(IPlayer player, IProperty property) bool
+        +TradeCard(IPlayer buyer, IPlayer seller, int offer) bool
+        +HandleRentPayment(IPlayer player, IProperty property) void
+        +ExecuteCardEffect(IPlayer player, ICard card) void
+        +SendToJail(IPlayer player) void
+        +HandleGetOutOfJail(IPlayer player) bool
+        +CheckGameOver() bool
+        +GetWinner() IPlayer
+    }
+
+    class IPlayer {
+        <<Interface>>
+        +string Name
+        +int Money
+        +bool IsBankrupt
+        +bool IsInJail
+        +int JailFreeCard
+    }
+
+        class Player {
+        +Player(string name)
+    }
+
+    class IBoard {
+        <<Interface>>
+        +ISpace[,] Grid
+        +List~ISpace~ Path
+        +int Size
+    }
+
+    class Board {
+        +int GridSize = 11 $
+        +Board()
+    }
+
+    class ISpace {
+        <<Interface>>
+        +string Name
+        +SpaceType Type
+        +IProperty? Property
+        +List~IToken~ Tokens
+    }
+
+    class Space {
+        +Space(string name, SpaceType type)
+    }
+
+    class SpaceType {
+        <<Enumeration>>
+        Go,
+        Street,
+        Railroad,
+        Utility,
+        IncomeTax,
+        LuxuryTax,
+        Jail,
+        GoToJail,
+        FreeParking,
+        Chance,
+        CommunityChest
+    }
+
+    class IProperty {
+        <<Interface>>
+        +string Name
+        +PropertyType PropertyType
+        +int Price
+        +int MortgageValue
+        +int[] Rents
+        +ColorGroup? ColorGroup
+        +int? HouseCost
+        +int BuildingLevel
+        +bool IsMortgaged
+    }
+
+    class Property {
+        +Property(string name, PropertyType propertyType, int price, int mortgageValue, int[] rents, ColorGroup? colorGroup, int? houseCost)
+    }
+
+    class PropertyType {
+        <<Enumeration>>
+        Street,
+        Railroad,
+        Utility
+    }
+
+    class ColorGroup {
+        <<Enumeration>>
+        Brown,
+        LightBlue,
+        Pink,
+        Orange,
+        Red,
+        Yellow,
+        Green,
+        DarkBlue
+    }
+
+    class IDice {
+        <<Interface>>
+        +int Side1
+        +int Side2
+    }
+
+    class Dice {
+        +Dice()
+    }
+
+    class ICard {
+        <<Interface>>
+        +CardType CardType
+        +CardEffect CardEffect
+        +string Description
+        +int? Value
+    }
+
+    class Card {
+        +Card(CardType cardType, CardEffect cardEffect, string description, int? value)
+    }
+
+    class ICardDeck {
+        <<Interface>>
+        +Queue~ICard~ Cards
+    }
+
+    class CardDeck {
+        +CardDeck()
+    }
+
+    class CardType {
+        <<Enumeration>>
+        Chance,
+        CommunityChest
+    }
+
+    class CardEffect {
+        <<Enumeration>>
+        MoveToPosition,
+        MoveToNearestRailroad,
+        MoveToNearestUtility,
+        MoveSteps,
+        ReceiveMoney,
+        PayMoney,
+        PayEachPlayer,
+        ReceiveFromEachPlayer,
+        GoToJail,
+        GetOutOfJailFree,
+        Repairs
+    }
+
+    class IToken {
+        <<Interface>>
+        +TokenColor Color
+    }
+
+    class Token {
+        +Token(TokenColor color)
+    }
+
+    class TokenColor {
+        <<Enumeration>>
+        Red,
+        Green,
+        Blue,
+        Yellow,
+        Purple,
+        Orange
+    }
+
+    GameController "1" --> "*" IPlayer: manages
+    GameController "1" --> "1" IBoard: uses
+    GameController "1" --> "1" IDice: uses
+    GameController "1" *-- "2" ICardDeck : manages
+
+    IBoard "1" *-- "*" ISpace: has
+    ISpace "1" o-- "0..1" IProperty: contains
+    IPlayer "0..1" <-- "0..*" IProperty: owned by
+    GameController "1" --> "*" IToken: keeps one per player
+    ICardDeck "1" o-- "*" ICard : contains
+
+    ISpace --> SpaceType
+    IProperty --> PropertyType
+    IProperty --> ColorGroup
+    ICard --> CardType
+    ICard --> CardEffect
+    IToken --> TokenColor
+
+
+    Player ..|> IPlayer
+    Dice ..|> IDice
+    Board ..|> IBoard
+    Token ..|> IToken
+    Space ..|> ISpace
+    Property ..|> IProperty
+    Card ..|> ICard
+    CardDeck ..|> ICardDeck

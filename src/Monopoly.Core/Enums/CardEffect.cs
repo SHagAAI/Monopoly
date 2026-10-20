@@ -3,6 +3,8 @@ namespace Monopoly.Core.Enums
     public enum CardEffect
     {
         MoveToPosition,
+        MoveToNearestRailroad ,
+        MoveToNearestUtility,
         MoveSteps,
         ReceiveMoney,
         PayMoney,
