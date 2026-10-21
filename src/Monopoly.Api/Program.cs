@@ -14,7 +14,15 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // 2. Cors for Future FE
-
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
+        .AllowAnyHeader()
+        .AllowAnyMethod();
+    });
+});
 
 
 var app = builder.Build();
@@ -28,6 +36,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// CORS use it here
+app.UseCors("AllowReactApp");
 app.UseAuthorization();
 
 app.MapControllers();
