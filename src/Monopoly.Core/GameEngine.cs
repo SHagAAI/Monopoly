@@ -42,13 +42,19 @@ namespace Monopoly.Core
         private readonly ICardDeck _communityChestDeck = new Carddeck();
         private bool _isGameOver;
 
+        /// =========================================================================================
+        /// ------------------------------- DEBT AND BANKRUPTCY HELPER ------------------------------
+        /// =========================================================================================
 
         /// <summary>
         /// for handling debt
         /// </summary>
-        private int _pendingDebtAmount;
-        private IPlayer? _pendingDebtor;
-        private IPlayer? _pendingCreditor; // null = Bank
+        // private int _pendingDebtAmount;
+        // private IPlayer? _pendingDebtor;
+        // private IPlayer? _pendingCreditor; // null = Bank
+
+        // Replaces the old scalar fields with a single chronological list (zero new classes)
+        private readonly List<(IPlayer Debtor, IPlayer? Creditor, int Amount)> _pendingDebts = new();
 
         public Action<IToken, ISpace>? OnPlayerMoved;
         public Action<IPlayer>? OnTurnChanged;
@@ -119,7 +125,7 @@ namespace Monopoly.Core
             Board.Path.Clear();
 
             InitializeSpace();
-            // InitializePath();
+            InitializePath();
         }
 
         /// <summary>Creates the 40 hard-coded squares and places each one in the grid.</summary>
@@ -207,7 +213,7 @@ namespace Monopoly.Core
         /// =========================================================================================
         /// -------------------------------- CARD PREPARATION ---------------------------------------
         /// =========================================================================================
-        
+
         /// <summary>
         /// Shuffles the specified card deck (CRD-04).
         /// </summary>
@@ -335,9 +341,8 @@ namespace Monopoly.Core
                         if (!SendMoney(player, fine))
                         {
                             // If player cannot pay immediately, enter debt state
-                            _pendingDebtAmount = fine;
-                            _pendingDebtor = player;
-                            _pendingCreditor = null; // owed to Bank
+                           
+                            RecordDebt(debtor: player, amount: fine, creditor:null); // owed to Bank
                         }
                     }
                     break;
@@ -353,9 +358,7 @@ namespace Monopoly.Core
                             {
                                 if (!SendMoney(player, amountPerPlayer, other))
                                 {
-                                    _pendingDebtAmount += amountPerPlayer;
-                                    _pendingDebtor = player;
-                                    _pendingCreditor = other;
+                                    RecordDebt(debtor:player, amount: amountPerPlayer, creditor:other);
                                 }
                             }
                         }
@@ -371,7 +374,11 @@ namespace Monopoly.Core
                         {
                             if (other != player && !other.IsBankrupt)
                             {
-                                SendMoney(other, gift, player);
+                                
+                                if (!SendMoney(other, gift, player))
+                                {
+                                    RecordDebt(debtor:other, amount:gift, creditor:player);
+                                }
                             }
                         }
                     }
@@ -412,9 +419,11 @@ namespace Monopoly.Core
                     {
                         if (!SendMoney(player, repairBill))
                         {
-                            _pendingDebtAmount = repairBill;
-                            _pendingDebtor = player;
-                            _pendingCreditor = null; // owed to Bank
+
+                            RecordDebt(debtor:player, amount: repairBill, creditor:null);
+                            // _pendingDebtAmount = repairBill;
+                            // _pendingDebtor = player;
+                            // _pendingCreditor = null; // owed to Bank
                         }
                     }
                     break;
@@ -574,7 +583,7 @@ namespace Monopoly.Core
         public void EndTurn()
         {
 
-            if (_pendingDebtAmount > 0)
+            if (HasPendingDebt())
             {
                 return;
             }
@@ -682,7 +691,8 @@ namespace Monopoly.Core
         /// </summary>
         public void RollDice()
         {
-            if (_isGameOver) return;
+            // if there are someone who hasnt paid his Debt, the game cant continue
+            if (_isGameOver || HasPendingDebt()) return;
 
             IPlayer player = GetCurrentPlayer();
             IToken token = _playerTokens[player];
@@ -717,8 +727,12 @@ namespace Monopoly.Core
                         // 3rd failed turn in jail: must pay $50, leaves jail, and moves by this roll (PLR-27)
                         if (!SendMoney(player, 50))
                         {
-                            return;
+                            // Cannot pay $50 -> record debt to Bank and stay in jail
+                            RecordDebt(player, 50, creditor: null);
+                           
                         }
+
+
                         player.IsInJail = false;
                         _jailTurns[player] = 0;
                         _doubleCount = 0;
@@ -758,7 +772,7 @@ namespace Monopoly.Core
         /// </summary>
         public bool CanRollAgain()
         {
-            if (_isGameOver || _pendingDebtAmount > 0) return false;
+            if (_isGameOver || HasPendingDebt()) return false;
 
             IPlayer player = GetCurrentPlayer();
 
@@ -771,8 +785,8 @@ namespace Monopoly.Core
             // Must be doubles (and not dice default 0 before rolling)
             // bool isDouble = Dice.Side1 == Dice.Side2 && Dice.Side1 > 0;
 
-            // Must be double, but strictly less than 3 consecutive doubles
             // return isDouble && _doubleCount > 0 && _doubleCount < 3;
+            // Must be double, but strictly less than 3 consecutive doubles
             return _doubleCount > 0 && _doubleCount < 3;
         }
         /// <summary>
@@ -787,6 +801,7 @@ namespace Monopoly.Core
             }
 
             int currentIndex = Board.Path.IndexOf(currentSpace);
+            
             // the square doesnt exist or smth
             if (currentIndex == -1) return;
 
@@ -859,12 +874,22 @@ namespace Monopoly.Core
 
                 case SpaceType.IncomeTax:
                     // Flat $200 payment to the Bank (SPC-06)
-                    SendMoney(player, BoardData.IncomeTaxAmount);
+                    // If player can't pay the $200 Income Tax, record debt to the Bank (creditor = null)
+                    if (!SendMoney(player, BoardData.IncomeTaxAmount))
+                    {
+                        RecordDebt(player, BoardData.IncomeTaxAmount, creditor: null);
+                    }
+
                     break;
 
                 case SpaceType.LuxuryTax:
                     // Flat $100 payment to the Bank (SPC-07)
-                    SendMoney(player, BoardData.LuxuryTaxAmount);
+                    // If player can't pay the $200 Income Tax, record debt to the Bank (creditor = null)
+                    if (!SendMoney(player, BoardData.LuxuryTaxAmount))
+                    {
+                        RecordDebt(player, BoardData.LuxuryTaxAmount, creditor: null);
+                    }
+
                     break;
 
                 case SpaceType.GoToJail:
@@ -1077,38 +1102,61 @@ namespace Monopoly.Core
 
             if (!SendMoney(player, rent, owner))
             {
-                _pendingDebtAmount = rent;
-                _pendingDebtor = player;
-                _pendingCreditor = owner;
+                // _pendingDebtAmount = rent;
+                // _pendingDebtor = player;
+                // _pendingCreditor = owner;
+
+                RecordDebt(debtor: player, amount: rent, creditor: owner);
             }
         }
 
         /// <summary>
         /// Pays the pending debt once the player has raised enough cash through mortgages or sales.
         /// </summary>
-        public bool PayPendingDebt()
+        public bool PayPendingDebt(IPlayer debtor)
         {
-            if (_pendingDebtAmount == 0 || _pendingDebtor == null) return false;
-
-            bool paid;
-            if (_pendingCreditor != null)
+            if (debtor == null)
             {
-                paid = SendMoney(_pendingDebtor, _pendingDebtAmount, _pendingCreditor);
-            }
-            else
-            {
-                paid = SendMoney(_pendingDebtor, _pendingDebtAmount); // To the Bank
+                return false;
             }
 
-            if (paid)
+            // if (_pendingDebtAmount == 0 || _pendingDebtor == null) return false;
+
+            bool anyPaid = false;
+            for (int i = 0; i < _pendingDebts.Count; i++)
             {
-                _pendingDebtAmount = 0;
-                _pendingDebtor = null;
-                _pendingCreditor = null;
-                return true;
+                var (theDebtor, theCreditor, amount) = _pendingDebts[i];
+                if (theDebtor != debtor)
+                {
+                    continue;
+                }
+
+                // can the debtor pay
+                if (debtor.Money >= amount)
+                {
+                    bool paid = theCreditor != null ? SendMoney(debtor, amount, theCreditor) : SendMoney(debtor, amount);
+
+                    if (paid)
+                    {
+                        _pendingDebts.RemoveAt(i);
+                        i--;
+                        anyPaid = true;
+                    }
+                }
+                else
+                {
+                    // cant afford it yet
+                    // need to raise money, debt is paid in order
+                    break;
+                }
+
+
             }
 
-            return false; // Still not enough cash
+
+
+
+            return anyPaid; // Still not enough cash
         }
 
         /// <summary>
@@ -1444,7 +1492,8 @@ namespace Monopoly.Core
             {
 
                 // If it's a voluntary sale, it's denied (PRP-65)
-                if (_pendingDebtAmount <= 0)
+                // if (_pendingDebtAmount <= 0)
+                if (!HasPendingDebt(player))
                 {
                     return false;
                 }
@@ -1533,7 +1582,8 @@ namespace Monopoly.Core
             if (player == null || player.IsBankrupt) return false;
 
             // Determine creditor from our pending debt (null = Bank)
-            IPlayer? creditor = (_pendingDebtor == player) ? _pendingCreditor : null;
+            var firstDebt = _pendingDebts.FirstOrDefault(d => d.Debtor == player);
+            IPlayer? creditor = firstDebt.Creditor;
 
             // 1. FORCED LIQUIDATION OF ALL BUILDINGS (PLR-31, PLR-34):
             // All houses and hotels on all streets owned by player are sold to the Bank at half price.
@@ -1625,12 +1675,8 @@ namespace Monopoly.Core
             _jailTurns.Remove(player);
             _doubleCount = 0;
 
-            if (_pendingDebtor == player)
-            {
-                _pendingDebtAmount = 0;
-                _pendingDebtor = null;
-                _pendingCreditor = null;
-            }
+            // player bankrupt, remove debt
+            _pendingDebts.RemoveAll(d => d.Debtor == player || d.Creditor == player);
 
             // 5. NOTIFY OBSERVERS
             OnPlayerBankrupt?.Invoke(player);
@@ -1680,6 +1726,28 @@ namespace Monopoly.Core
             return Players.FirstOrDefault(p => !p.IsBankrupt);
         }
 
+        /// =========================================================================================
+        /// --------------------------------- DEBT BANKRUPTCY HELPERD -------------------------------
+        /// =========================================================================================
+
+        /// <summary>
+        /// Records an unpaid obligation as a pending debt (creditor = null means owed to the Bank).
+        /// </summary>
+        private void RecordDebt(IPlayer debtor, int amount, IPlayer? creditor)
+        {
+
+            _pendingDebts.Add((debtor, creditor, amount));
+            // _pendingDebtAmount = amount;
+            // _pendingDebtor = debtor;
+            // _pendingCreditor = creditor; // null means the creditor is the Bank
+        }
+
+
+        /// <summary>Returns true if ANY unresolved debt exists in the game.</summary>
+        public bool HasPendingDebt() => _pendingDebts.Count > 0;
+
+        /// <summary>Returns true if a specific player owes an unpaid debt.</summary>
+        public bool HasPendingDebt(IPlayer player) => _pendingDebts.Any(d => d.Debtor == player);
         /// =========================================================================================
         /// ------------------------------- Trading & Auction ---------------------------------------
         /// =========================================================================================
@@ -2070,6 +2138,8 @@ namespace Monopoly.Core
 
             return winner;
         }
+
+
 
 
         /// <summary>
