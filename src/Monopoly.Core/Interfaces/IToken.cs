@@ -1,6 +1,4 @@
-
 using Monopoly.Core.Enums;
-
 namespace Monopoly.Core.Interfaces
 {
     public interface IToken
