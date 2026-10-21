@@ -1,6 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/Monopoly.Api/Monopoly.Api.csproj" />
-    <Project Path="src/Monopoly.Core/Monopoly.Core.csproj" />
-  </Folder>
-</Solution>
