@@ -42,16 +42,21 @@ namespace Monopoly.Core
         private readonly ICardDeck _communityChestDeck = new Carddeck();
         private bool _isGameOver;
 
+        /// FLAG, Bug fixing, (API can call RollDice again and again)
+        private bool _hasRolled;
+
+        // ========================================================================================
+        // CHANCE & COMMUNITY CHEST HELPER
+        // ========================================================================================
+
+        public ICard? LastDrawnCard { get; private set; }
+        public void ClearLastDrawnCard() => LastDrawnCard = null;
+
+
+
         /// =========================================================================================
         /// ------------------------------- DEBT AND BANKRUPTCY HELPER ------------------------------
         /// =========================================================================================
-
-        /// <summary>
-        /// for handling debt
-        /// </summary>
-        // private int _pendingDebtAmount;
-        // private IPlayer? _pendingDebtor;
-        // private IPlayer? _pendingCreditor; // null = Bank
 
         // Replaces the old scalar fields with a single chronological list (zero new classes)
         private readonly List<(IPlayer Debtor, IPlayer? Creditor, int Amount)> _pendingDebts = new();
@@ -247,6 +252,7 @@ namespace Monopoly.Core
 
             // 1. Draw top card (CRD-02)
             ICard card = deck.Cards.Dequeue();
+            LastDrawnCard = card;
 
             // 2. Notify observers / UI to display the card popup
             OnCardEffect?.Invoke(player, card);
@@ -341,8 +347,8 @@ namespace Monopoly.Core
                         if (!SendMoney(player, fine))
                         {
                             // If player cannot pay immediately, enter debt state
-                           
-                            RecordDebt(debtor: player, amount: fine, creditor:null); // owed to Bank
+
+                            RecordDebt(debtor: player, amount: fine, creditor: null); // owed to Bank
                         }
                     }
                     break;
@@ -358,7 +364,7 @@ namespace Monopoly.Core
                             {
                                 if (!SendMoney(player, amountPerPlayer, other))
                                 {
-                                    RecordDebt(debtor:player, amount: amountPerPlayer, creditor:other);
+                                    RecordDebt(debtor: player, amount: amountPerPlayer, creditor: other);
                                 }
                             }
                         }
@@ -374,10 +380,10 @@ namespace Monopoly.Core
                         {
                             if (other != player && !other.IsBankrupt)
                             {
-                                
+
                                 if (!SendMoney(other, gift, player))
                                 {
-                                    RecordDebt(debtor:other, amount:gift, creditor:player);
+                                    RecordDebt(debtor: other, amount: gift, creditor: player);
                                 }
                             }
                         }
@@ -420,7 +426,7 @@ namespace Monopoly.Core
                         if (!SendMoney(player, repairBill))
                         {
 
-                            RecordDebt(debtor:player, amount: repairBill, creditor:null);
+                            RecordDebt(debtor: player, amount: repairBill, creditor: null);
                             // _pendingDebtAmount = repairBill;
                             // _pendingDebtor = player;
                             // _pendingCreditor = null; // owed to Bank
@@ -460,34 +466,10 @@ namespace Monopoly.Core
             if (players.Count < MinPlayers || players.Count > MaxPlayers) return false;
             if (players.Count != tokens.Count) return false;
 
-
-
-            // if (playerNames.Count < MinPlayers || playerNames.Count > MaxPlayers)
-            // {
-            //     return false;
-            // }
-
-            // if (playerNames.Count != tokenColors.Count)
-            // {
-            //     return false;
-            // }
-
-            // if (playerNames.Any(string.IsNullOrWhiteSpace))
-            // {
-            //     return false;
-            // }
-
-            // if (playerNames.Distinct().Count() != playerNames.Count)
-            // {
-            //     return false;
-            // }
-
-            // if (tokenColors.Distinct().Count() != tokenColors.Count)
-            // {
-            //     return false;
-            // }
-
             ISpace go = Board.Path[0];
+
+            // 1. Copy to local list first so clearing doesn't wipe the source
+            var playerList = players.ToList();
 
             Players.Clear();
             _playerTokens.Clear();
@@ -501,9 +483,9 @@ namespace Monopoly.Core
                 space.Tokens.Clear();
             }
 
-            for (int i = 0; i < players.Count; i++)
+            for (int i = 0; i < playerList.Count; i++)
             {
-                IPlayer player = players[i];
+                IPlayer player = playerList[i];
                 IToken token = tokens[i];
 
                 // token.CurrentPosition = go;
@@ -569,6 +551,7 @@ namespace Monopoly.Core
             _isGameOver = false;
             _doubleCount = 0;
             _currentPlayerIndex = 0;
+            _hasRolled = false;
 
             OnTurnChanged?.Invoke(GetCurrentPlayer());
         }
@@ -588,6 +571,8 @@ namespace Monopoly.Core
                 return;
             }
             _doubleCount = 0;
+            _hasRolled = false;
+            LastDrawnCard = null;
             NextTurn();
         }
 
@@ -691,6 +676,14 @@ namespace Monopoly.Core
         /// </summary>
         public void RollDice()
         {
+
+            // Block if not allowed to roll right now
+            if (!CanRoll()) return;
+
+            _hasRolled = true;
+            LastDrawnCard = null;
+
+
             // if there are someone who hasnt paid his Debt, the game cant continue
             if (_isGameOver || HasPendingDebt()) return;
 
@@ -729,7 +722,7 @@ namespace Monopoly.Core
                         {
                             // Cannot pay $50 -> record debt to Bank and stay in jail
                             RecordDebt(player, 50, creditor: null);
-                           
+
                         }
 
 
@@ -789,6 +782,28 @@ namespace Monopoly.Core
             // Must be double, but strictly less than 3 consecutive doubles
             return _doubleCount > 0 && _doubleCount < 3;
         }
+
+        public bool CanRoll()
+        {
+            if (_isGameOver || HasPendingDebt()) return false;
+            IPlayer player = GetCurrentPlayer();
+            if (player.IsBankrupt) return false;
+
+            // Allowed to roll if haven't rolled yet, OR if earned an extra roll via doubles
+            return !_hasRolled || CanRollAgain();
+        }
+
+        public bool CanEndTurn()
+        {
+            if (_isGameOver || HasPendingDebt()) return false;
+            IPlayer player = GetCurrentPlayer();
+            if (player.IsBankrupt) return true;
+
+            // Allowed to end turn only after rolling, and NOT while holding an extra double-roll
+            return _hasRolled && !CanRollAgain();
+        }
+
+
         /// <summary>
         /// Moves the token forward (or backward) by the given number of steps,
         /// checks for passing GO ($200), updates token positions, and triggers HandleLanding.
@@ -801,7 +816,7 @@ namespace Monopoly.Core
             }
 
             int currentIndex = Board.Path.IndexOf(currentSpace);
-            
+
             // the square doesnt exist or smth
             if (currentIndex == -1) return;
 
@@ -1748,9 +1763,29 @@ namespace Monopoly.Core
 
         /// <summary>Returns true if a specific player owes an unpaid debt.</summary>
         public bool HasPendingDebt(IPlayer player) => _pendingDebts.Any(d => d.Debtor == player);
+
+        /// =========================================================================================
+        /// ------------------------------- API (GetState) ---------------------------------------
+        /// =========================================================================================
+
+        public IToken? GetPlayerToken(IPlayer player)
+            => _playerTokens.TryGetValue(player, out var token) ? token : null;
+        public ISpace? GetPlayerPosition(IPlayer player)
+            => _playerTokens.TryGetValue(player, out var token) && _tokenPositions.TryGetValue(token, out var space) ? space : null;
+
+
+
         /// =========================================================================================
         /// ------------------------------- Trading & Auction ---------------------------------------
         /// =========================================================================================
+
+
+        public IPlayer? TradeBuyer => _tradeBuyer;
+        public IPlayer? TradeSeller => _tradeSeller;
+        public List<IProperty>? TradeProperties => _tradeProperties;
+        public int TradeOffer => _tradeOffer;
+        public bool HasPendingTrade => _tradeSeller != null;
+
 
         /// <summary>
         /// Sells an undeveloped property back to the Bank (PRP-30 to PRP-32).
@@ -1947,6 +1982,12 @@ namespace Monopoly.Core
         /// =========================================================================================
         /// ------------------------------------ TRADING CARD ---------------------------------------
         /// =========================================================================================
+
+        public IPlayer? CardTradeBuyer => _cardTradeBuyer;
+        public IPlayer? CardTradeSeller => _cardTradeSeller;
+        public int CardTradeOffer => _cardTradeOffer;
+        public bool HasPendingCardTrade => _cardTradeSeller != null;
+
         /// <summary>
         /// Buys a Get Out of Jail Free card from another player for an agreed cash amount (CRD-06, PLR-25).
         /// Enforces: seller has at least 1 card, buyer has enough cash, and neither player is bankrupt.
@@ -2055,6 +2096,13 @@ namespace Monopoly.Core
         /// =========================================================================================
         /// --------------------------------------- AUCTION -----------------------------------------
         /// =========================================================================================
+
+
+
+        public IProperty? AuctionProperty => _auctionProperty;
+        public IPlayer? HighestBidder => _highestBidder;
+        public int HighestBid => _highestBid;
+        public bool HasActiveAuction => _auctionProperty != null;
 
         ///  <summary>
         /// Called when a player lands on an unowned property and declines to buy it at the printed price (PRP-12).

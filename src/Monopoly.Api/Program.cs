@@ -1,33 +1,31 @@
-/// dotnet new webapi -n Monopoly.Api -o . --use-controllers -f net8.0
-/// cd ..
-/// dotnet add Monopoly.Api/Monopoly.Api.csproj reference Monopoly.Core/Monopoly.Core.csproj
-/// 
- 
+using Monopoly.Api.Hubs;
+using Monopoly.Api.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
-// 1. Controller
+// 1. Controller & SignalR
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// 2. Cors for Future FE
+// ADD SINGLETON GAMESERVICE
+builder.Services.AddSingleton<GameService>();
+
+// 2. Cors for React Frontend + SignalR
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
         policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
-        .AllowAnyHeader()
-        .AllowAnyMethod();
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -36,10 +34,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// CORS use it here
+// CORS must be used before MapHub
 app.UseCors("AllowReactApp");
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<GameHub>("/gamehub");
 
 app.Run();

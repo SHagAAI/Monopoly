@@ -14,7 +14,7 @@ namespace Monopoly.Api.Services
             IBoard board = new Board();
             IDice dice = new Dice();
 
-            Engine = new GameEngine(board, dice, players);
+            Engine = new GameEngine(board, dice, new List<IPlayer>());
 
             // INITIALIZE COMPONENTS
             Engine.InitializeBoard();
