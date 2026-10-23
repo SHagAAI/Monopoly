@@ -80,7 +80,8 @@ namespace Monopoly.Api.Controllers
             if (engine == null) return NotFound();
 
             var player = engine.GetCurrentPlayer();
-            var space = engine.Board.Path.FirstOrDefault(s => s.Tokens.Any(t => t.Color == engine.GetPlayerToken(player).Color));
+            // var space = engine.Board.Path.FirstOrDefault(s => s.Tokens.Any(t => t.Color == engine.GetPlayerToken(player).Color));
+            var space = engine.GetPlayerPosition(player);
 
             if (space?.Property == null) return BadRequest("Not standing on a property.");
 

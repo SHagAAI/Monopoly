@@ -11,15 +11,15 @@ const TOKEN_COLORS = ['Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple'];
 
 export const StartGameModal: React.FC<StartGameModalProps> = ({ onStart, loading }) => {
   const [players, setPlayers] = useState<StartPlayerInput[]>([
-    { name: 'Player 1', tokenColor: 'Red' },
-    { name: 'Player 2', tokenColor: 'Blue' }
+    { name: 'Player 1', color: 'Red' },
+    { name: 'Player 2', color: 'Blue' }
   ]);
 
   const handleAddPlayer = () => {
     if (players.length >= 6) return;
     const nextIdx = players.length;
     const nextColor = TOKEN_COLORS[nextIdx % TOKEN_COLORS.length];
-    setPlayers([...players, { name: `Player ${nextIdx + 1}`, tokenColor: nextColor }]);
+    setPlayers([...players, { name: `Player ${nextIdx + 1}`, color: nextColor }]);
   };
 
   const handleRemovePlayer = (idx: number) => {
@@ -68,8 +68,8 @@ export const StartGameModal: React.FC<StartGameModalProps> = ({ onStart, loading
                   }}
                 />
                 <select
-                  value={p.tokenColor}
-                  onChange={(e) => handleUpdate(idx, 'tokenColor', e.target.value)}
+                  value={p.color}
+                  onChange={(e) => handleUpdate(idx, 'color', e.target.value)}
                   style={{
                     padding: '10px 12px',
                     borderRadius: 8,

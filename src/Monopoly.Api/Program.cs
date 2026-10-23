@@ -1,10 +1,19 @@
 using Monopoly.Api.Hubs;
 using Monopoly.Api.Services;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Controller & SignalR
-builder.Services.AddControllers();
+
+//  change it because C# cant automatically detect "Red" as an enum. 
+// by default accept integer as enum.
+// builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

@@ -86,5 +86,5 @@ export interface GameStateDto {
 
 export interface StartPlayerInput {
   name: string;
-  tokenColor: string;
+  color: string;
 }
