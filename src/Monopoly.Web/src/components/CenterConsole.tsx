@@ -1,6 +1,13 @@
-import React from 'react';
-import { GameStateDto } from '../types/game';
-import { Dices, Flag, DollarSign, Building2, AlertTriangle, ShieldAlert } from 'lucide-react';
+import React from "react";
+import { GameStateDto } from "../types/game";
+import {
+  Dices,
+  Flag,
+  DollarSign,
+  Building2,
+  AlertTriangle,
+  ShieldAlert,
+} from "lucide-react";
 
 interface CenterConsoleProps {
   gameState: GameStateDto;
@@ -25,15 +32,34 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
   onBankrupt,
   onPayJailFine,
   onUseJailCard,
-  loading
+  loading,
 }) => {
-  const currentPlayer = gameState.players.find((p) => p.id === gameState.currentPlayerId);
-  const currentSpace = gameState.spaces.find((s) => s.index === currentPlayer?.position);
+  const currentPlayer = gameState.players.find(
+    (p) => p.id === gameState.currentPlayerId,
+  );
+  const currentSpace = gameState.spaces.find(
+    (s) => s.index === currentPlayer?.position,
+  );
+
+  //
+  const isUnownedProperty = Boolean(
+    currentSpace &&
+    ["Street", "Railroad", "Utility"].includes(currentSpace.type) &&
+    !currentSpace.ownerName &&
+    currentSpace.price,
+  );
+
+  const canAffordProperty = Boolean(
+    isUnownedProperty &&
+    currentPlayer &&
+    currentSpace?.price &&
+    currentPlayer.money >= currentSpace.price,
+  );
 
   // Check if current space is an unowned purchasable property
   const canBuyCurrentSpace =
     currentSpace &&
-    ['Street', 'Railroad', 'Utility'].includes(currentSpace.type) &&
+    ["Street", "Railroad", "Utility"].includes(currentSpace.type) &&
     !currentSpace.ownerName &&
     currentSpace.price &&
     currentPlayer &&
@@ -46,11 +72,12 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
         <div className="turn-banner">
           <span
             style={{
-              display: 'inline-block',
+              display: "inline-block",
               width: 12,
               height: 12,
-              borderRadius: '50%',
-              backgroundColor: currentPlayer?.tokenColor.toLowerCase() || '#f59e0b'
+              borderRadius: "50%",
+              backgroundColor:
+                currentPlayer?.tokenColor.toLowerCase() || "#f59e0b",
             }}
           />
           <span>
@@ -64,11 +91,17 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
       {/* 3D Dice Display */}
       <div>
         <div className="dice-container">
-          <div className="dice-box">{gameState.dice.side1 > 0 ? gameState.dice.side1 : '🎲'}</div>
-          <div className="dice-box">{gameState.dice.side2 > 0 ? gameState.dice.side2 : '🎲'}</div>
+          <div className="dice-box">
+            {gameState.dice.side1 > 0 ? gameState.dice.side1 : "🎲"}
+          </div>
+          <div className="dice-box">
+            {gameState.dice.side2 > 0 ? gameState.dice.side2 : "🎲"}
+          </div>
         </div>
         {gameState.dice.isDouble && (
-          <div className="dice-double-alert text-center">🎉 Rolled Doubles! (Roll Again)</div>
+          <div className="dice-double-alert text-center">
+            🎉 Rolled Doubles! (Roll Again)
+          </div>
         )}
       </div>
 
@@ -76,15 +109,23 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
       {gameState.hasPendingDebt && (
         <div className="debt-alert-banner">
           <AlertTriangle size={18} />
-          <span>You have pending debts! Raise funds by mortgaging or declaring bankruptcy.</span>
+          <span>
+            You have pending debts! Raise funds by mortgaging or declaring
+            bankruptcy.
+          </span>
         </div>
       )}
 
       {/* Current Landing Info */}
       {currentSpace && (
-        <div style={{ textAlign: 'center', fontSize: '0.82rem', color: '#94a3b8' }}>
-          Standing on <strong style={{ color: '#f8fafc' }}>{currentSpace.name}</strong>
-          {currentSpace.price && !currentSpace.ownerName && ` (Price: $${currentSpace.price})`}
+        <div
+          style={{ textAlign: "center", fontSize: "0.82rem", color: "#94a3b8" }}
+        >
+          Standing on{" "}
+          <strong style={{ color: "#f8fafc" }}>{currentSpace.name}</strong>
+          {currentSpace.price &&
+            !currentSpace.ownerName &&
+            ` (Price: $${currentSpace.price})`}
           {currentSpace.ownerName && ` (Owner: ${currentSpace.ownerName})`}
         </div>
       )}
@@ -107,14 +148,15 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
                 onClick={onUseJailCard}
                 disabled={loading}
               >
-                <ShieldAlert size={16} /> Use Jail-Free Card ({currentPlayer.jailFreeCards})
+                <ShieldAlert size={16} /> Use Jail-Free Card (
+                {currentPlayer.jailFreeCards})
               </button>
             )}
           </div>
         )}
 
         {/* Unowned Property Buy / Auction Controls */}
-        {canBuyCurrentSpace && (
+        {/* {canBuyCurrentSpace && (
           <div className="action-row">
             <button
               className="btn btn-success"
@@ -129,6 +171,29 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
               disabled={loading}
             >
               Auction
+            </button>
+          </div>
+        )} */}
+
+        {/* Unowned Property Buy / Auction Controls */}
+        {isUnownedProperty && (
+          <div className="action-row">
+            <button
+              className="btn btn-success"
+              onClick={onBuyProperty}
+              disabled={loading || !canAffordProperty}
+            >
+              <Building2 size={16} />{" "}
+              {canAffordProperty
+                ? `Buy Property ($${currentSpace?.price})`
+                : `Can't Afford ($${currentSpace?.price})`}
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={onAuctionProperty}
+              disabled={loading}
+            >
+              Pass (Auction)
             </button>
           </div>
         )}
@@ -160,7 +225,8 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
             onClick={onRoll}
             disabled={!gameState.canRoll || loading}
           >
-            <Dices size={18} /> {gameState.canRollAgain ? 'Roll Again!' : 'Roll Dice'}
+            <Dices size={18} />{" "}
+            {gameState.canRollAgain ? "Roll Again!" : "Roll Dice"}
           </button>
 
           <button

@@ -45,6 +45,9 @@ namespace Monopoly.Core
         /// FLAG, Bug fixing, (API can call RollDice again and again)
         private bool _hasRolled;
 
+        /// FLAG, Bug fixing, (Game cant continue when everyone decline buying property)
+        private bool _propertyDecisionResolved = true;
+
         // ========================================================================================
         // CHANCE & COMMUNITY CHEST HELPER
         // ========================================================================================
@@ -110,15 +113,21 @@ namespace Monopoly.Core
         public Action<IPlayer, int>? OnBidPlaced; // bidder, amount
         public Action<IProperty, IPlayer?, int>? OnAuctionEnded; // property, winner (or null), winningBid
 
+        /// =========================================================================================
+        /// AUCTION HELPER, TAKE TURN TO BID
+        /// =========================================================================================
+        private List<IPlayer> _auctionBidders = new();
+        private int _auctionTurnIndex;
+
+        public IPlayer? CurrentAuctionBidder =>
+            _auctionBidders.Count > 0 ? _auctionBidders[_auctionTurnIndex % _auctionBidders.Count] : null;
+
         public GameEngine(IBoard board, IDice dice, List<IPlayer> players)
         {
             Board = board;
             Dice = dice;
             Players = players;
         }
-
-
-
 
         /// <summary>
         /// Builds the whole board: creates the 40 squares and puts them in the grid and on the path.
@@ -783,9 +792,31 @@ namespace Monopoly.Core
             return _doubleCount > 0 && _doubleCount < 3;
         }
 
+        // Helper: checks if the current player is standing on an unowned purchasable property
+        public bool HasUnresolvedPropertyUnderfoot()
+        {
+            if (_propertyDecisionResolved) return false; // auction is done already/bought
+            var player = GetCurrentPlayer();
+            var space = GetPlayerPosition(player);
+            return space?.Property != null && GetPropertyOwner(space.Property) == null;
+        }
+
         public bool CanRoll()
         {
             if (_isGameOver || HasPendingDebt()) return false;
+            if (HasUnresolvedPropertyUnderfoot())
+            {
+                return false;
+            }
+            // IPlayer player = GetCurrentPlayer();
+
+            // // checks if the current player is standing on an unowned purchasable property
+            // var space = GetPlayerPosition(player);
+
+            // if (space?.Property != null && GetPropertyOwner(space.Property) == null)
+            // {
+            //     return false;
+            // }
             IPlayer player = GetCurrentPlayer();
             if (player.IsBankrupt) return false;
 
@@ -796,7 +827,18 @@ namespace Monopoly.Core
         public bool CanEndTurn()
         {
             if (_isGameOver || HasPendingDebt()) return false;
+
+            if (HasUnresolvedPropertyUnderfoot())
+            {
+                return false;
+            }
             IPlayer player = GetCurrentPlayer();
+
+            // var space = GetPlayerPosition(player);
+            // if (space?.Property != null && GetPropertyOwner(space.Property) == null)
+            // {
+            //     return false;
+            // }
             if (player.IsBankrupt) return true;
 
             // Allowed to end turn only after rolling, and NOT while holding an extra double-roll
@@ -853,6 +895,9 @@ namespace Monopoly.Core
 
             // update the dictionary
             _tokenPositions[token] = newSpace;
+
+            // reset FLAG, auction helper to continue the turn
+            _propertyDecisionResolved = false;
 
             // Notify observers
             OnPlayerMoved?.Invoke(token, newSpace);
@@ -1019,6 +1064,9 @@ namespace Monopoly.Core
 
             // 3. Register ownership in the dictionary (PRP-11)
             _propertyOwners[property] = player;
+
+            // RESET, FLAG for auction
+            _propertyDecisionResolved = true;
 
             return true;
         }
@@ -2110,6 +2158,7 @@ namespace Monopoly.Core
         /// </summary>
         public void DeclineProperty(IPlayer player, IProperty property)
         {
+            _propertyDecisionResolved = true;
             // Rule PRP-12: If the player declines, the Bank auctions it!
             StartAuction(property);
         }
@@ -2129,6 +2178,12 @@ namespace Monopoly.Core
             _highestBidder = null;
             _highestBid = 0;
 
+            // Initialize all active (non-bankrupt) players as bidders
+            _auctionBidders = Players.Where(p => !p.IsBankrupt).ToList();
+
+            // Turn starts with the player who declined
+            _auctionTurnIndex = _currentPlayerIndex;
+
             OnAuctionStarted?.Invoke(property);
             return true;
         }
@@ -2140,7 +2195,7 @@ namespace Monopoly.Core
         public bool PlaceBid(IPlayer player, int amount)
         {
             if (_auctionProperty == null) return false;
-            if (player == null || player.IsBankrupt || _isGameOver) return false;
+            if (player == null || player.IsBankrupt || _isGameOver) return false; // to make sure it is your turn
 
             // Bid must be higher than current top bid, and player must actually have the cash
             if (amount <= _highestBid || player.Money < amount)
@@ -2152,6 +2207,41 @@ namespace Monopoly.Core
             _highestBid = amount;
 
             OnBidPlaced?.Invoke(player, amount);
+
+            // Advance bidding turn to the next remaining bidder
+            if (_auctionBidders.Count > 1)
+            {
+                _auctionTurnIndex = (_auctionTurnIndex + 1) % _auctionBidders.Count;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// A player passes their turn in the auction and drops out (PRP-13).
+        /// </summary>
+        public bool PassBid(IPlayer player)
+        {
+            if (_auctionProperty == null || player != CurrentAuctionBidder) return false;
+
+            // Remove this player from the auction
+            _auctionBidders.Remove(player);
+
+            // Case 1: Nobody left at all ➔ Auction ends, stays with Bank
+            if (_auctionBidders.Count == 0)
+            {
+                HandleAuction(_auctionProperty);
+                return true;
+            }
+
+            // Case 2: Only 1 bidder remains AND someone placed a bid ➔ Remaining player wins!
+            if (_auctionBidders.Count == 1 && _highestBidder != null)
+            {
+                HandleAuction(_auctionProperty);
+                return true;
+            }
+
+            // Case 3: More bidders remain ➔ Advance turn
+            _auctionTurnIndex = _auctionTurnIndex % _auctionBidders.Count;
             return true;
         }
 

@@ -148,7 +148,10 @@ export default function App() {
               onRoll={() => executeAction(api.rollDice)}
               onEndTurn={() => executeAction(api.endTurn)}
               onBuyProperty={() => executeAction(api.buyProperty)}
-              onAuctionProperty={() => executeAction(api.startAuction)}
+
+              // Auction not happen when I clicked
+              // onAuctionProperty={() => executeAction(api.startAuction)}
+              onAuctionProperty={() => executeAction(api.declineProperty)}
               onPayDebt={() => executeAction(api.payDebt)}
               onBankrupt={() => executeAction(api.declareBankruptcy)}
               onPayJailFine={() => executeAction(api.payJailFine)}
@@ -206,7 +209,10 @@ export default function App() {
         onBid={(playerId, amount) =>
           executeAction(() => api.placeBid(playerId, amount))
         }
-        onEndAuction={() => executeAction(api.endAuction)}
+        // onEndAuction={() => executeAction(api.endAuction)}
+        onPass={(playerId)=>{
+          executeAction(()=> api.passAuction(playerId))
+        }}
         loading={loading}
       />
 

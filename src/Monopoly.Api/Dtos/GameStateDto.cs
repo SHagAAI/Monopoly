@@ -88,6 +88,9 @@ namespace Monopoly.Api.Dtos
         public int? HighestBidderId { get; set; }
         public string? HighestBidderName { get; set; }
         public int HighestBid { get; set; }
+
+        public int? CurrentBidderId { get; set; }
+        public string? CurrentBidderName { get; set; }
     }
 
     public class CardTradeProposalRequest

@@ -37,6 +37,8 @@ export interface AuctionDto {
   highestBidderId: number | null;
   highestBidderName: string | null;
   highestBid: number;
+  currentBidderId: number | null; // 👈 helper for take turn when bidding
+  currentBidderName: string | null; // 👈 helper for take turn when bidding
 }
 
 export interface CardTradeDto {

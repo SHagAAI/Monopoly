@@ -243,14 +243,14 @@ body {
 }
 
 /* Owner Indicators */
-.owner-ribbon {
+/* .owner-ribbon {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 3px;
   z-index: 4;
-}
+} */
 
 .buildings-badge {
   display: flex;

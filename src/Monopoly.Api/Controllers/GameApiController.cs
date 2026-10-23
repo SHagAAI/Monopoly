@@ -398,15 +398,40 @@ namespace Monopoly.Api.Controllers
             return Ok(GetState());
         }
 
-        [HttpPost("auction/end")]
-        public IActionResult EndAuction([FromQuery] int spaceIndex)
+        /// <summary>The current bidder passes their turn in the auction.</summary>
+        [HttpPost("auction/pass")]
+        public IActionResult PassAuction([FromQuery] int playerId)
         {
             var engine = _gameService.Engine;
             if (engine == null) return NotFound("Game has not started.");
-            if (spaceIndex < 0 || spaceIndex >= engine.Board.Path.Count) return BadRequest("Invalid space index.");
-            var space = engine.Board.Path[spaceIndex];
-            if (space.Property == null) return BadRequest("Space is not a property.");
-            var winner = engine.HandleAuction(space.Property);
+            if (!engine.HasActiveAuction) return BadRequest("No active auction.");
+
+            var player = engine.Players.FirstOrDefault(p => p.Id == playerId);
+            if (player == null) return BadRequest("Player not found.");
+
+            bool success = engine.PassBid(player);
+            if (!success) return BadRequest("Cannot pass (either not your turn or not in auction).");
+
+            return Ok(GetState());
+        }
+
+        [HttpPost("auction/end")]
+        // public IActionResult EndAuction([FromQuery] int spaceIndex)
+        public IActionResult EndAuction()
+        {
+            var engine = _gameService.Engine;
+            if (engine == null) return NotFound("Game has not started.");
+
+            if (!engine.HasActiveAuction || engine.AuctionProperty == null)
+            {
+                return BadRequest("No active auction to end.");
+            }
+            // if (spaceIndex < 0 || spaceIndex >= engine.Board.Path.Count) return BadRequest("Invalid space index.");
+            // var space = engine.Board.Path[spaceIndex];
+            // if (space.Property == null) return BadRequest("Space is not a property.");
+
+
+            var winner = engine.HandleAuction(engine.AuctionProperty);
             return Ok(GetState());
         }
 
@@ -619,7 +644,9 @@ namespace Monopoly.Api.Controllers
                     PropertyName = engine.AuctionProperty!.Name,
                     HighestBidderId = engine.HighestBidder?.Id,
                     HighestBidderName = engine.HighestBidder?.Name,
-                    HighestBid = engine.HighestBid
+                    HighestBid = engine.HighestBid,
+                    CurrentBidderId = engine.CurrentAuctionBidder?.Id,      // helper for take turn when bidding
+                    CurrentBidderName = engine.CurrentAuctionBidder?.Name   // helper for take turn when bidding
                 } : null,
                 PendingCardTrade = engine.HasPendingCardTrade ? new CardTradeDto
                 {
