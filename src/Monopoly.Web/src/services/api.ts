@@ -23,8 +23,11 @@ export const api = {
     fetch(`${API_BASE}/api/GameApi/state`).then(handleResponse<GameStateDto>),
 
   // Turns & Movement
-  rollDice: () =>
-    fetch(`${API_BASE}/api/GameApi/roll`, { method: "POST" }).then(
+  rollDice: (playerId?: number | null) =>
+    // fetch(`${API_BASE}/api/GameApi/roll`, { method: "POST" }).then(
+    //   handleResponse<GameStateDto>,
+    // ),
+    fetch(`${API_BASE}/api/GameApi/roll${playerId ? `?playerId=${playerId}` : ''}`, { method: "POST" }).then(
       handleResponse<GameStateDto>,
     ),
 

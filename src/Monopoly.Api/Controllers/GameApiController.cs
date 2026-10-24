@@ -8,6 +8,8 @@ using Monopoly.Api.Services;
 using Monopoly.Core.Enums;
 using Monopoly.Core.Interfaces;
 using Monopoly.Core.Models;
+using Microsoft.AspNetCore.SignalR;
+using Monopoly.Api.Hubs;
 
 namespace Monopoly.Api.Controllers
 {
@@ -17,9 +19,21 @@ namespace Monopoly.Api.Controllers
     {
         private readonly GameService _gameService;
 
-        public GameApiController(GameService gameService)
+        // For multiplayer
+        private readonly IHubContext<GameHub> _hubContext;
+
+        // public GameApiController(GameService gameService)
+        public GameApiController(GameService gameService, IHubContext<GameHub> hubContext)
         {
             _gameService = gameService;
+            _hubContext = hubContext;
+        }
+
+        private IActionResult StateResult()
+        {
+            var state = GetState();
+            _ = _hubContext.Clients.All.SendAsync("GameStateUpdated", state);
+            return Ok(state);
         }
 
         [HttpPost("start")]
@@ -44,7 +58,10 @@ namespace Monopoly.Api.Controllers
                 tokens.Add(new Token(p.Color));
             }
             _gameService.StartNewGame(players, tokens);
-            return Ok(GetState());
+            // return Ok(GetState());
+
+
+            return StateResult();
         }
 
         [HttpGet("state")]
@@ -55,12 +72,23 @@ namespace Monopoly.Api.Controllers
         }
 
         [HttpPost("roll")]
-        public IActionResult RollDice()
+        public IActionResult RollDice([FromQuery] int? playerId = null)
         {
             if (_gameService.Engine == null) return NotFound("Game has not started.");
-            if (!_gameService.Engine.CanRoll()) return BadRequest("Cannot roll right now. Please end your turn or resolve debts.");
+
+
+            // if (!_gameService.Engine.CanRoll()) return BadRequest("Cannot roll right now. Please end your turn or resolve debts.");
+            // 👈 Security check: reject if someone tries to roll on another player's turn
+            if (playerId.HasValue && playerId.Value != _gameService.Engine.GetCurrentPlayer().Id)
+            {
+                return BadRequest("It is not your turn to roll!");
+            }
+
+
             _gameService.Engine.RollDice();
-            return Ok(GetState());
+            // return Ok(GetState());
+
+            return StateResult();
         }
 
         [HttpPost("end-turn")]
@@ -70,7 +98,10 @@ namespace Monopoly.Api.Controllers
             if (!_gameService.Engine.CanEndTurn()) return BadRequest("Cannot end turn. You must roll first or roll again for doubles.");
 
             _gameService.Engine.EndTurn();
-            return Ok(GetState());
+            // return Ok(GetState());
+
+
+            return StateResult();
         }
 
         [HttpPost("buy-property")]
@@ -86,7 +117,10 @@ namespace Monopoly.Api.Controllers
             if (space?.Property == null) return BadRequest("Not standing on a property.");
 
             bool bought = engine.BuyProperty(player, space.Property);
-            return bought ? Ok(GetState()) : BadRequest("Cannot buy property.");
+            // return bought ? Ok(GetState()) : BadRequest("Cannot buy property.");
+
+            // MULTIPLAYER
+            return bought ? StateResult() : BadRequest("Cannot buy property.");
         }
 
         [HttpPost("pay-debt")]
@@ -310,7 +344,10 @@ namespace Monopoly.Api.Controllers
 
             bool success = engine.ProposeTrade(buyer, seller, properties, request.CashOffer);
             if (!success) return BadRequest("Trade rejected (check buyer funds, seller ownership, or unbuilt group rule).");
-            return Ok(GetState());
+            // return Ok(GetState());
+
+            // MULTIPLAYER
+            return StateResult();
         }
 
 
@@ -325,7 +362,10 @@ namespace Monopoly.Api.Controllers
 
             bool success = engine.AcceptTrade(seller);
             if (!success) return BadRequest("Failed to accept trade. No matching active proposal.");
-            return Ok(GetState());
+            // return Ok(GetState());
+
+            // MULTIPLAYER
+            return StateResult();
         }
 
         [HttpPost("trade/decline")]
@@ -339,7 +379,10 @@ namespace Monopoly.Api.Controllers
 
             engine.DeclineTrade(seller);
 
-            return Ok(GetState());
+            // return Ok(GetState());
+
+            // MULTIPLAYER
+            return StateResult();
         }
 
         /// =========================================================================
@@ -365,7 +408,8 @@ namespace Monopoly.Api.Controllers
             // Triggers the official auction
             engine.DeclineProperty(player, space.Property);
 
-            return Ok(GetState());
+            // return Ok(GetState());
+            return StateResult();
         }
 
 
@@ -381,7 +425,8 @@ namespace Monopoly.Api.Controllers
 
             bool success = engine.StartAuction(space.Property);
             if (!success) return BadRequest("Cannot start auction (property may already be owned).");
-            return Ok(GetState());
+            // return Ok(GetState());
+            return StateResult();
         }
 
         [HttpPost("auction/bid")]
@@ -393,9 +438,17 @@ namespace Monopoly.Api.Controllers
             var player = engine.Players.FirstOrDefault(p => p.Id == request.PlayerId);
             if (player == null) return BadRequest("Player not found.");
 
+            if (engine.CurrentAuctionBidder != null && player != engine.CurrentAuctionBidder)
+            {
+                return BadRequest("It is not your turn to bid.");
+            }
+
+
             bool success = engine.PlaceBid(player, request.Amount);
             if (!success) return BadRequest("Bid rejected. Must exceed current highest bid and player must have enough cash.");
-            return Ok(GetState());
+            // return Ok(GetState());
+
+             return StateResult();
         }
 
         /// <summary>The current bidder passes their turn in the auction.</summary>
@@ -412,7 +465,9 @@ namespace Monopoly.Api.Controllers
             bool success = engine.PassBid(player);
             if (!success) return BadRequest("Cannot pass (either not your turn or not in auction).");
 
-            return Ok(GetState());
+            // return Ok(GetState());
+
+            return StateResult();
         }
 
         [HttpPost("auction/end")]
@@ -432,7 +487,8 @@ namespace Monopoly.Api.Controllers
 
 
             var winner = engine.HandleAuction(engine.AuctionProperty);
-            return Ok(GetState());
+            // return Ok(GetState());
+            return StateResult();
         }
 
 
@@ -454,7 +510,10 @@ namespace Monopoly.Api.Controllers
             bool success = engine.ProposeCardTrade(buyer, seller, request.CashOffer);
             if (!success) return BadRequest("Cannot propose card trade (check buyer cash or seller card count).");
 
-            return Ok(GetState());
+            // return Ok(GetState());
+
+            // MULTIPLAYER
+            return StateResult();
         }
 
         /// <summary>The seller accepts the card trade offer, transferring cash and the Jail card.</summary>
@@ -470,7 +529,10 @@ namespace Monopoly.Api.Controllers
             bool success = engine.AcceptCardTrade(seller);
             if (!success) return BadRequest("Failed to accept card trade. No matching active proposal.");
 
-            return Ok(GetState());
+            // return Ok(GetState());
+
+            // MULTIPLAYER
+            return StateResult();
         }
 
         /// <summary>The seller declines the card trade offer.</summary>
@@ -484,7 +546,10 @@ namespace Monopoly.Api.Controllers
             if (seller == null) return BadRequest("Seller not found.");
 
             engine.DeclineCardTrade(seller);
-            return Ok(GetState());
+            // return Ok(GetState());
+
+            // MULTIPLAYER
+            return StateResult();
         }
 
 
@@ -495,7 +560,10 @@ namespace Monopoly.Api.Controllers
             var engine = _gameService.Engine;
             if (engine == null) return NotFound("Game has not started.");
             engine.ClearLastDrawnCard();
-            return Ok(GetState());
+            // return Ok(GetState());
+
+            // MULTIPLAYER
+            return StateResult();
         }
 
         // =========================================================================

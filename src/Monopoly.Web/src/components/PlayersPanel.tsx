@@ -4,6 +4,9 @@ import { Users, Home, Hotel, Shield, ArrowRightLeft } from 'lucide-react';
 
 interface PlayersPanelProps {
   gameState: GameStateDto;
+
+  // MULTIPLAYER
+  myPlayerId: number | null;
   onTradeClick: (targetPlayer: PlayerDto) => void;
   onCardTradeClick: (targetPlayer: PlayerDto) => void;
   onPropertyClickByName: (propertyName: string) => void;
@@ -20,6 +23,7 @@ const TOKEN_COLOR_MAP: Record<string, string> = {
 
 export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   gameState,
+  myPlayerId,
   onTradeClick,
   onCardTradeClick,
   onPropertyClickByName
@@ -120,7 +124,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
                 )}
 
                 {/* Trade Action Trigger (if not self and not bankrupt) */}
-                {!player.isBankrupt && player.id !== gameState.currentPlayerId && (
+                {!player.isBankrupt && (myPlayerId ? player.id !== myPlayerId : player.id !== gameState.currentPlayerId) && (
                   <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
                     {player.ownedProperties.length > 0 && (
                       <button

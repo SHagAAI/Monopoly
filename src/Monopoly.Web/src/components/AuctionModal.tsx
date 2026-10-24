@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { AuctionDto, PlayerDto } from '../types/game';
-import { Gavel, Trophy, XCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { AuctionDto, PlayerDto } from "../types/game";
+import { Clock, Gavel, Trophy, XCircle } from "lucide-react";
 
 interface AuctionModalProps {
   auction: AuctionDto | null;
   players: PlayerDto[];
+  myPlayerId: number | null;
   onBid: (playerId: number, amount: number) => void;
   onPass: (playerId: number) => void;
   loading: boolean;
@@ -13,9 +14,10 @@ interface AuctionModalProps {
 export const AuctionModal: React.FC<AuctionModalProps> = ({
   auction,
   players,
+  myPlayerId,
   onBid,
   onPass,
-  loading
+  loading,
 }) => {
   if (!auction) return null;
 
@@ -23,7 +25,13 @@ export const AuctionModal: React.FC<AuctionModalProps> = ({
   const activeBidderId = auction.currentBidderId || players[0]?.id || 1;
   const activeBidder = players.find((p) => p.id === activeBidderId);
 
-  const [bidAmount, setBidAmount] = useState<number>((auction.highestBid || 0) + 10);
+  const myPlayer = players.find((p) => p.id === myPlayerId);
+  // Only true for the player whose turn it actually is
+  const isMyTurn = myPlayerId !== null && myPlayerId === activeBidderId;
+
+  const [bidAmount, setBidAmount] = useState<number>(
+    (auction.highestBid || 0) + 10,
+  );
 
   // Keep bid amount updated when someone raises the highest bid
   useEffect(() => {
@@ -31,81 +39,203 @@ export const AuctionModal: React.FC<AuctionModalProps> = ({
   }, [auction.highestBid, auction.currentBidderId]);
 
   const handlePlaceBid = () => {
-    if (bidAmount > auction.highestBid) {
-      onBid(activeBidderId, bidAmount);
+    if (isMyTurn && myPlayerId && bidAmount > auction.highestBid) {
+      onBid(myPlayerId, bidAmount);
     }
   };
 
   const handlePass = () => {
-    onPass(activeBidderId);
+    // onPass(activeBidderId);
+
+    // pass myPlayerId (MULTIPLAYER)
+    if (isMyTurn && myPlayerId) {
+      onPass(myPlayerId);
+    }
   };
 
   return (
     <div className="modal-overlay">
       <div className="modal-box" style={{ maxWidth: 460 }}>
         <div className="modal-header">
-          <div style={{ background: '#f59e0b', color: '#0f172a', padding: '4px 10px', borderRadius: 6, fontWeight: 800 }}>
+          <div
+            style={{
+              background: "#f59e0b",
+              color: "#0f172a",
+              padding: "4px 10px",
+              borderRadius: 6,
+              fontWeight: 800,
+            }}
+          >
             LIVE AUCTION
           </div>
         </div>
 
-        <h3 style={{ fontSize: '1.3rem', fontWeight: 800, textAlign: 'center', marginTop: 8 }}>
+        <h3
+          style={{
+            fontSize: "1.3rem",
+            fontWeight: 800,
+            textAlign: "center",
+            marginTop: 8,
+          }}
+        >
           {auction.propertyName}
         </h3>
 
         {/* Current Bid Display */}
-        <div style={{ margin: '16px 0', padding: 14, background: '#0f172a', borderRadius: 10, textAlign: 'center' }}>
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>CURRENT HIGHEST BID</div>
-          <div style={{ fontSize: '2.2rem', fontWeight: 900, color: '#34d399', margin: '4px 0' }}>
+        <div
+          style={{
+            margin: "16px 0",
+            padding: 14,
+            background: "#0f172a",
+            borderRadius: 10,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
+            CURRENT HIGHEST BID
+          </div>
+          <div
+            style={{
+              fontSize: "2.2rem",
+              fontWeight: 900,
+              color: "#34d399",
+              margin: "4px 0",
+            }}
+          >
             ${auction.highestBid}
           </div>
-          <div style={{ fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <div
+            style={{
+              fontSize: "0.85rem",
+              color: "#cbd5e1",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+            }}
+          >
             <Trophy size={15} color="#f59e0b" />
-            <span>Highest Bidder: <strong>{auction.highestBidderName || 'No bids yet'}</strong></span>
+            <span>
+              Highest Bidder:{" "}
+              <strong>{auction.highestBidderName || "No bids yet"}</strong>
+            </span>
           </div>
         </div>
 
-        {/* Whose Turn It Is to Bid */}
-        <div style={{ padding: '10px 14px', background: '#1e293b', border: '1px solid #3b82f6', borderRadius: 8, textAlign: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>BIDDING TURN</div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#38bdf8', marginTop: 2 }}>
-            👉 {auction.currentBidderName || activeBidder?.name || 'Waiting...'}
+        {/* MULTIPLAYER */}
+        {/* Bidding Turn Status Banner */}
+        {isMyTurn ? (
+          <div
+            style={{
+              padding: "10px 14px",
+              background: "#064e3b",
+              border: "1px solid #10b981",
+              borderRadius: 8,
+              textAlign: "center",
+              marginBottom: 16,
+            }}
+          >
+            <div
+              style={{ fontSize: "0.8rem", color: "#6ee7b7", fontWeight: 700 }}
+            >
+              YOUR TURN TO BID
+            </div>
+            <div
+              style={{
+                fontSize: "1.05rem",
+                fontWeight: 800,
+                color: "#ecfdf5",
+                marginTop: 2,
+              }}
+            >
+              It's your turn to place a bid or pass !
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#a7f3d0", marginTop: 2 }}>
+              Your Available Funds: <strong>${myPlayer?.money ?? 0}</strong>
+            </div>
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#cbd5e1', marginTop: 2 }}>
-            Available Funds: <strong>${activeBidder?.money ?? 0}</strong>
+        ) : (
+          <div
+            style={{
+              padding: "10px 14px",
+              background: "#1e293b",
+              border: "1px solid #475569",
+              borderRadius: 8,
+              textAlign: "center",
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
+              BIDDING TURN
+            </div>
+            <div
+              style={{
+                fontSize: "1.05rem",
+                fontWeight: 700,
+                color: "#38bdf8",
+                marginTop: 2,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+              }}
+            >
+              <Clock size={16} />
+              <span>
+                Waiting for{" "}
+                <strong>
+                  {auction.currentBidderName ||
+                    activeBidder?.name ||
+                    "Opponent"}
+                </strong>{" "}
+                to bid or pass...
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Bid Input */}
-        <div style={{ marginBottom: 18 }}>
-          <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: 4 }}>
+
+        <div style={{ marginBottom: 18, opacity: isMyTurn ? 1 : 0.4 }}>
+          <label
+            style={{
+              fontSize: "0.8rem",
+              color: "#94a3b8",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
             Raise Bid ($):
           </label>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: "flex", gap: 8 }}>
             <input
               type="number"
               min={auction.highestBid + 1}
               value={bidAmount}
+              disabled={!isMyTurn || loading}
               onChange={(e) => setBidAmount(Number(e.target.value))}
               style={{
                 flex: 1,
-                padding: '8px 12px',
+                padding: "8px 12px",
                 borderRadius: 8,
-                background: '#1e293b',
-                color: 'white',
-                border: '1px solid #475569'
+                background: "#1e293b",
+                color: "white",
+                border: "1px solid #475569",
+                cursor: isMyTurn ? "text" : "not-allowed",
               }}
             />
             <button
               className="btn btn-secondary"
-              style={{ padding: '8px 12px' }}
+              style={{ padding: "8px 12px" }}
+              disabled={!isMyTurn || loading}
               onClick={() => setBidAmount((prev) => prev + 10)}
             >
               +$10
             </button>
             <button
               className="btn btn-secondary"
-              style={{ padding: '8px 12px' }}
+              style={{ padding: "8px 12px" }}
+              disabled={!isMyTurn || loading}
               onClick={() => setBidAmount((prev) => prev + 50)}
             >
               +$50
@@ -114,25 +244,51 @@ export const AuctionModal: React.FC<AuctionModalProps> = ({
         </div>
 
         {/* Action Buttons: Bid or Pass */}
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: "flex", gap: 10 }}>
           <button
             className="btn btn-primary"
-            style={{ flex: 1.5 }}
+            style={{
+              flex: 1.5,
+              opacity: isMyTurn ? 1 : 0.5,
+              cursor: isMyTurn ? "pointer" : "not-allowed",
+            }}
             onClick={handlePlaceBid}
-            disabled={loading || bidAmount <= auction.highestBid || (activeBidder?.money ?? 0) < bidAmount}
+            disabled={
+              !isMyTurn ||
+              loading ||
+              bidAmount <= auction.highestBid ||
+              (myPlayer?.money ?? 0) < bidAmount
+            }
           >
             <Gavel size={16} /> Place Bid (${bidAmount})
           </button>
-          
+
           <button
             className="btn btn-danger"
-            style={{ flex: 1 }}
+            style={{
+              flex: 1,
+              opacity: isMyTurn ? 1 : 0.5,
+              cursor: isMyTurn ? "pointer" : "not-allowed",
+            }}
             onClick={handlePass}
             disabled={loading}
           >
             <XCircle size={16} /> Pass
           </button>
         </div>
+        {/* Helper Note for Inactive Player */}
+        {!isMyTurn && (
+          <div
+            style={{
+              textAlign: "center",
+              fontSize: "0.75rem",
+              color: "#94a3b8",
+              marginTop: 10,
+            }}
+          >
+            Buttons are disabled until it is your turn to bid.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -282,5 +438,3 @@ export const AuctionModal: React.FC<AuctionModalProps> = ({
 //     </div>
 //   );
 // };
-
-

@@ -1,16 +1,24 @@
-import { useEffect, useState } from 'react';
-import { GameStateDto, SpaceDto, PlayerDto, StartPlayerInput } from './types/game';
-import { api } from './services/api';
-import { startSignalR } from './services/signalr';
-import { Board } from './components/Board';
-import { CenterConsole } from './components/CenterConsole';
-import { PlayersPanel } from './components/PlayersPanel';
-import { CardModal } from './components/CardModal';
-import { AuctionModal } from './components/AuctionModal';
-import { TradeModal } from './components/TradeModal';
-import { PropertyDetailModal } from './components/PropertyDetailModal';
-import { StartGameModal } from './components/StartGameModal';
-import { RotateCcw } from 'lucide-react';
+import { useEffect, useState } from "react";
+import {
+  GameStateDto,
+  SpaceDto,
+  PlayerDto,
+  StartPlayerInput,
+} from "./types/game";
+import { api } from "./services/api";
+import { startSignalR } from "./services/signalr";
+import { Board } from "./components/Board";
+import { CenterConsole } from "./components/CenterConsole";
+import { PlayersPanel } from "./components/PlayersPanel";
+import { CardModal } from "./components/CardModal";
+import { AuctionModal } from "./components/AuctionModal";
+import { TradeModal } from "./components/TradeModal";
+import { PropertyDetailModal } from "./components/PropertyDetailModal";
+import { StartGameModal } from "./components/StartGameModal";
+import { RotateCcw } from "lucide-react";
+
+// for Remote Multi
+import { SelectPlayerModal } from "./components/SelectPlayerModal";
 
 export default function App() {
   const [gameState, setGameState] = useState<GameStateDto | null>(null);
@@ -21,7 +29,21 @@ export default function App() {
   // Modals state
   const [showStartModal, setShowStartModal] = useState<boolean>(false);
   const [selectedSpace, setSelectedSpace] = useState<SpaceDto | null>(null);
-  const [tradeTargetPlayer, setTradeTargetPlayer] = useState<PlayerDto | null>(null);
+  const [tradeTargetPlayer, setTradeTargetPlayer] = useState<PlayerDto | null>(
+    null,
+  );
+
+  // ====================================
+  // For Remote MultiPlayer
+  const [myPlayerId, setMyPlayerId] = useState<number | null>(() => {
+    const saved = localStorage.getItem("monopoly_my_player_id");
+    return saved ? Number(saved) : null;
+  });
+
+  const handleSelectPlayer = (id: number) => {
+    setMyPlayerId(id);
+    localStorage.setItem("monopoly_my_player_id", String(id));
+  };
 
   // Auto clear error message
   useEffect(() => {
@@ -38,17 +60,27 @@ export default function App() {
     async function init() {
       try {
         await startSignalR((newState) => {
-          if (isMounted) {
-            setGameState(newState);
-            // Refresh selected space if it's currently open in modal
-            setSelectedSpace((prev) =>
-              prev ? newState.spaces.find((s) => s.index === prev.index) || null : null
-            );
-          }
+          // if (isMounted) {
+          //   setGameState(newState);
+          //   // Refresh selected space if it's currently open in modal
+          //   setSelectedSpace((prev) =>
+          //     prev
+          //       ? newState.spaces.find((s) => s.index === prev.index) || null
+          //       : null,
+          //   );
+          // }
+          console.log("[App] New state from SignalR:", newState);
+          setGameState(newState);
+          setSelectedSpace((prev) =>
+            prev
+              ? newState.spaces.find((s) => s.index === prev.index) || null
+              : null,
+          );
         });
-        if (isMounted) setSignalRConnected(true);
+        // if (isMounted) setSignalRConnected(true);
+        setSignalRConnected(true);
       } catch (err) {
-        console.warn('SignalR init error:', err);
+        console.warn("SignalR init error:", err);
       }
 
       // Initial HTTP fetch
@@ -75,7 +107,7 @@ export default function App() {
       const updated = await action();
       setGameState(updated);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Action failed.');
+      setErrorMessage(err.message || "Action failed.");
     } finally {
       setLoading(false);
     }
@@ -85,6 +117,7 @@ export default function App() {
     executeAction(async () => {
       const state = await api.startGame(players);
       setShowStartModal(false);
+      handleSelectPlayer(1);
       return state;
     });
   };
@@ -94,19 +127,58 @@ export default function App() {
       {/* Top Navbar */}
       <header className="top-navbar">
         <div className="logo-area">
-          <span style={{ fontSize: '1.6rem' }}>🎲</span>
+          <span style={{ fontSize: "1.6rem" }}>🎲</span>
           <h1 className="logo-title">MONOPOLY LIVE</h1>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {/* MULTIPLAYER */}
+        {myPlayerId && gameState && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: "#1e293b",
+              padding: "4px 12px",
+              borderRadius: 20,
+              fontSize: "0.85rem",
+            }}
+          >
+            <span>Playing as:</span>
+            <strong style={{ color: "#38bdf8" }}>
+              {gameState.players.find((p) => p.id === myPlayerId)?.name ||
+                `Player ${myPlayerId}`}
+            </strong>
+            <button
+              onClick={() => setMyPlayerId(null)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#94a3b8",
+                cursor: "pointer",
+                textDecoration: "underline",
+                fontSize: "0.75rem",
+                marginLeft: 4,
+              }}
+            >
+              (Switch)
+            </button>
+          </div>
+        )}
+
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div className="conn-status">
-            <span className={`status-dot ${signalRConnected ? 'connected' : ''}`} />
-            <span>{signalRConnected ? 'SignalR Live Sync' : 'Connecting...'}</span>
+            <span
+              className={`status-dot ${signalRConnected ? "connected" : ""}`}
+            />
+            <span>
+              {signalRConnected ? "SignalR Live Sync" : "Connecting..."}
+            </span>
           </div>
 
           <button
             className="btn btn-secondary"
-            style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+            style={{ padding: "6px 14px", fontSize: "0.8rem" }}
             onClick={() => setShowStartModal(true)}
           >
             <RotateCcw size={14} /> New Game
@@ -118,17 +190,17 @@ export default function App() {
       {errorMessage && (
         <div
           style={{
-            position: 'fixed',
+            position: "fixed",
             top: 70,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: '#ef4444',
-            color: 'white',
-            padding: '10px 20px',
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "#ef4444",
+            color: "white",
+            padding: "10px 20px",
             borderRadius: 8,
             fontWeight: 700,
             zIndex: 200,
-            boxShadow: '0 10px 25px rgba(239, 68, 68, 0.4)'
+            boxShadow: "0 10px 25px rgba(239, 68, 68, 0.4)",
           }}
         >
           {errorMessage}
@@ -145,10 +217,11 @@ export default function App() {
           >
             <CenterConsole
               gameState={gameState}
-              onRoll={() => executeAction(api.rollDice)}
+              myPlayerId={myPlayerId} // ONLINE
+              // onRoll={() => executeAction(api.rollDice)}
+              onRoll={() => executeAction(() => api.rollDice(myPlayerId))}
               onEndTurn={() => executeAction(api.endTurn)}
               onBuyProperty={() => executeAction(api.buyProperty)}
-
               // Auction not happen when I clicked
               // onAuctionProperty={() => executeAction(api.startAuction)}
               onAuctionProperty={() => executeAction(api.declineProperty)}
@@ -163,10 +236,11 @@ export default function App() {
           {/* Right Sidebar: Players and Supply */}
           <PlayersPanel
             gameState={gameState}
+            myPlayerId={myPlayerId}
             onTradeClick={(player) => setTradeTargetPlayer(player)}
             onCardTradeClick={(player) =>
               executeAction(() =>
-                api.proposeCardTrade(gameState.currentPlayerId, player.id, 50)
+                api.proposeCardTrade(gameState.currentPlayerId, player.id, 50),
               )
             }
             onPropertyClickByName={(name) => {
@@ -178,18 +252,21 @@ export default function App() {
       ) : (
         <div
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
             flex: 1,
-            gap: 16
+            gap: 16,
           }}
         >
-          <div style={{ fontSize: '3rem' }}>🎩</div>
+          <div style={{ fontSize: "3rem" }}>🎩</div>
           <h2>Welcome to Monopoly Live</h2>
-          <p style={{ color: '#94a3b8' }}>No active match found on server.</p>
-          <button className="btn btn-primary" onClick={() => setShowStartModal(true)}>
+          <p style={{ color: "#94a3b8" }}>No active match found on server.</p>
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowStartModal(true)}
+          >
             Start New Game
           </button>
         </div>
@@ -199,6 +276,8 @@ export default function App() {
       {/* 1. Chance / Community Chest Card Popup */}
       <CardModal
         card={gameState?.lastDrawnCard || null}
+        myPlayerId={myPlayerId}
+        currentPlayerId={gameState?.currentPlayerId}
         onDismiss={() => executeAction(api.dismissCard)}
       />
 
@@ -206,24 +285,30 @@ export default function App() {
       <AuctionModal
         auction={gameState?.activeAuction || null}
         players={gameState?.players || []}
+        myPlayerId={myPlayerId}
         onBid={(playerId, amount) =>
           executeAction(() => api.placeBid(playerId, amount))
         }
         // onEndAuction={() => executeAction(api.endAuction)}
-        onPass={(playerId)=>{
-          executeAction(()=> api.passAuction(playerId))
+        onPass={(playerId) => {
+          executeAction(() => api.passAuction(playerId));
         }}
         loading={loading}
       />
 
       {/* 3. Trade Modal (Incoming proposals or Proposing) */}
-      {(gameState?.pendingTrade || gameState?.pendingCardTrade || tradeTargetPlayer) && (
+      {(gameState?.pendingTrade ||
+        gameState?.pendingCardTrade ||
+        tradeTargetPlayer) && (
         <TradeModal
           gameState={gameState!}
+          myPlayerId={myPlayerId}
           targetPlayer={tradeTargetPlayer}
           onClose={() => setTradeTargetPlayer(null)}
           onProposePropertyTrade={(buyerId, sellerId, spaceIndices, cash) =>
-            executeAction(() => api.proposeTrade(buyerId, sellerId, spaceIndices, cash))
+            executeAction(() =>
+              api.proposeTrade(buyerId, sellerId, spaceIndices, cash),
+            )
           }
           onProposeCardTrade={(buyerId, sellerId, cash) =>
             executeAction(() => api.proposeCardTrade(buyerId, sellerId, cash))
@@ -255,17 +340,26 @@ export default function App() {
           onBuyHotel={(idx) => executeAction(() => api.buyHotel(idx))}
           onSellHotel={(idx) => executeAction(() => api.sellHotel(idx))}
           onMortgage={(idx) => executeAction(() => api.mortgageProperty(idx))}
-          onUnmortgage={(idx) => executeAction(() => api.unmortgageProperty(idx))}
-          onSellToBank={(idx) => executeAction(() => api.sellPropertyToBank(idx))}
+          onUnmortgage={(idx) =>
+            executeAction(() => api.unmortgageProperty(idx))
+          }
+          onSellToBank={(idx) =>
+            executeAction(() => api.sellPropertyToBank(idx))
+          }
           loading={loading}
         />
       )}
 
       {/* 5. Start Game Modal */}
       {showStartModal && (
-        <StartGameModal
-          onStart={handleStartGame}
-          loading={loading}
+        <StartGameModal onStart={handleStartGame} loading={loading} />
+      )}
+
+      {/* MULTIPLAYER */}
+      {gameState && !myPlayerId && (
+        <SelectPlayerModal
+          players={gameState.players}
+          onSelectPlayer={handleSelectPlayer}
         />
       )}
     </div>

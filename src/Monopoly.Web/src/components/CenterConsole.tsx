@@ -20,6 +20,7 @@ interface CenterConsoleProps {
   onPayJailFine: () => void;
   onUseJailCard: () => void;
   loading: boolean;
+  myPlayerId: number | null;
 }
 
 export const CenterConsole: React.FC<CenterConsoleProps> = ({
@@ -33,6 +34,7 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
   onPayJailFine,
   onUseJailCard,
   loading,
+  myPlayerId,
 }) => {
   const currentPlayer = gameState.players.find(
     (p) => p.id === gameState.currentPlayerId,
@@ -57,13 +59,15 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
   );
 
   // Check if current space is an unowned purchasable property
-  const canBuyCurrentSpace =
-    currentSpace &&
-    ["Street", "Railroad", "Utility"].includes(currentSpace.type) &&
-    !currentSpace.ownerName &&
-    currentSpace.price &&
-    currentPlayer &&
-    currentPlayer.money >= currentSpace.price;
+  // const canBuyCurrentSpace =
+  //   currentSpace &&
+  //   ["Street", "Railroad", "Utility"].includes(currentSpace.type) &&
+  //   !currentSpace.ownerName &&
+  //   currentSpace.price &&
+  //   currentPlayer &&
+  //   currentPlayer.money >= currentSpace.price;
+
+  const isMyTurn = myPlayerId === gameState.currentPlayerId;
 
   return (
     <>
@@ -80,10 +84,19 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
                 currentPlayer?.tokenColor.toLowerCase() || "#f59e0b",
             }}
           />
-          <span>
+          {/* <span>
             {gameState.isGameOver
               ? `Game Over! Winner: ${gameState.winnerName}`
               : `${gameState.currentPlayerName}'s Turn`}
+          </span> */}
+
+          {/* MULTIPLAYER */}
+          <span>
+            {gameState.isGameOver
+              ? `Game Over! Winner: ${gameState.winnerName}`
+              : isMyTurn
+                ? "Your Turn"
+                : `Waiting for ${gameState.currentPlayerName}...`}
           </span>
         </div>
       </div>
@@ -176,12 +189,13 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
         )} */}
 
         {/* Unowned Property Buy / Auction Controls */}
+        {/* Buy Property Button */}
         {isUnownedProperty && (
           <div className="action-row">
             <button
               className="btn btn-success"
               onClick={onBuyProperty}
-              disabled={loading || !canAffordProperty}
+              disabled={!isMyTurn || loading || !canAffordProperty}
             >
               <Building2 size={16} />{" "}
               {canAffordProperty
@@ -191,7 +205,8 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
             <button
               className="btn btn-secondary"
               onClick={onAuctionProperty}
-              disabled={loading}
+              // disabled={loading}
+              disabled={!isMyTurn || loading}
             >
               Pass (Auction)
             </button>
@@ -223,7 +238,7 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
           <button
             className="btn btn-primary"
             onClick={onRoll}
-            disabled={!gameState.canRoll || loading}
+            disabled={!isMyTurn || !gameState.canRoll || loading}
           >
             <Dices size={18} />{" "}
             {gameState.canRollAgain ? "Roll Again!" : "Roll Dice"}
@@ -232,7 +247,7 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
           <button
             className="btn btn-secondary"
             onClick={onEndTurn}
-            disabled={!gameState.canEndTurn || loading}
+            disabled={!isMyTurn || !gameState.canEndTurn || loading}
           >
             <Flag size={18} /> End Turn
           </button>

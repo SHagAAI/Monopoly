@@ -4,11 +4,21 @@ import { Sparkles, CheckCircle2 } from 'lucide-react';
 
 interface CardModalProps {
   card: CardDto | null;
+  myPlayerId?: number | null; // 👈 Add current viewer's seat ID
+  currentPlayerId?: number;  
   onDismiss: () => void;
 }
 
-export const CardModal: React.FC<CardModalProps> = ({ card, onDismiss }) => {
+export const CardModal: React.FC<CardModalProps> = ({ card, 
+  myPlayerId,
+  currentPlayerId,
+  onDismiss }) => {
   if (!card) return null;
+
+  //  Only show the modal to the player who actually drew the card!
+  if (myPlayerId && currentPlayerId && myPlayerId !== currentPlayerId) {
+    return null;
+  }
 
   const isChance = card.cardType === 'Chance';
 
