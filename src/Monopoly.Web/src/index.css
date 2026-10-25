@@ -373,26 +373,95 @@ body {
 /* 3D Dice Display */
 .dice-container {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.dice-pair {
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 18px;
-  margin: 16px 0;
 }
 
 .dice-box {
   width: 60px;
   height: 60px;
-  background: white;
+  background: linear-gradient(145deg, #ffffff, #f1f5f9);
   border-radius: 12px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4), inset 0 -3px 0 #cbd5e1;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45), inset 0 -3px 0 #cbd5e1;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.8rem;
-  font-weight: 900;
-  color: #0f172a;
+  user-select: none;
+  transition: transform 0.2s ease-out;
 }
 
+.dice-box.rolling-left {
+  animation: diceRollLeft 0.6s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  box-shadow: 0 14px 24px rgba(0, 0, 0, 0.5), 0 0 12px rgba(56, 189, 248, 0.4);
+}
+.dice-box.rolling-right {
+  animation: diceRollRight 0.6s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  box-shadow: 0 14px 24px rgba(0, 0, 0, 0.5), 0 0 12px rgba(56, 189, 248, 0.4);
+}
+.dice-box.landed {
+  animation: diceLand 0.25s ease-out;
+}
+@keyframes diceRollLeft {
+  0% { transform: translateY(0) rotate(0deg) scale(1); }
+  25% { transform: translateY(-16px) rotate(-25deg) scale(1.12); }
+  50% { transform: translateY(-6px) rotate(20deg) scale(0.95); }
+  75% { transform: translateY(-14px) rotate(-15deg) scale(1.08); }
+  100% { transform: translateY(0) rotate(0deg) scale(1); }
+}
+@keyframes diceRollRight {
+  0% { transform: translateY(0) rotate(0deg) scale(1); }
+  25% { transform: translateY(-18px) rotate(28deg) scale(1.12); }
+  50% { transform: translateY(-5px) rotate(-18deg) scale(0.95); }
+  75% { transform: translateY(-12px) rotate(15deg) scale(1.08); }
+  100% { transform: translateY(0) rotate(0deg) scale(1); }
+}
+@keyframes diceLand {
+  0% { transform: scale(1.22); }
+  60% { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+/* 3x3 Pip Grid inside Die */
+.dice-pip-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 44px;
+  height: 44px;
+}
+.pip-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pip-dot {
+  width: 9px;
+  height: 9px;
+  background-color: #0f172a;
+  border-radius: 50%;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.dice-result-badge {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 3px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .dice-double-alert {
   color: #f59e0b;
   font-weight: 800;
@@ -400,7 +469,14 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-top: 4px;
+  animation: doublePulse 0.8s ease-in-out infinite alternate;
 }
+@keyframes doublePulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.08); text-shadow: 0 0 10px #f59e0b; }
+}
+
+
 
 /* Action Controls */
 .center-actions {

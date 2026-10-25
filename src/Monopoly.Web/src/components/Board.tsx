@@ -63,7 +63,75 @@ export const Board: React.FC<BoardProps> = ({
   });
   const [hoppingPlayerId, setHoppingPlayerId] = useState<number | null>(null);
   const prevPositionsRef = useRef<Record<number, number>>({});
-  // 👈 2. Animate token square-by-square when position changes
+
+  // 2. Animate token square-by-square when position changes
+
+  // useEffect(() => {
+  //   const timeouts: any[] = [];
+  //   const intervals: any[] = [];
+
+  //   for (const p of gameState.players) {
+  //     const prevPos = prevPositionsRef.current[p.id];
+  //     const targetPos = p.position;
+
+  //     // Initial mount: record position
+  //     if (prevPos === undefined) {
+  //       prevPositionsRef.current[p.id] = targetPos;
+  //       setDisplayPositions((prev) => ({ ...prev, [p.id]: targetPos }));
+  //       continue;
+  //     }
+
+  //     // If position changed, animate the steps!
+  //     if (prevPos !== targetPos) {
+  //       prevPositionsRef.current[p.id] = targetPos;
+
+  //       // Total squares to advance (clockwise)
+  //       const steps = (targetPos - prevPos + 40) % 40;
+
+  //       // If sent to jail (space 30 -> 10) or large teleport (> 12 spaces), jump directly
+  //       if (steps > 12 || (p.isInJail && targetPos === 10)) {
+  //         setDisplayPositions((prev) => ({ ...prev, [p.id]: targetPos }));
+  //         continue;
+  //       }
+
+  //       // Wait 700ms for dice rolling & landing animation to finish first!
+  //       const startDelay = setTimeout(() => {
+  //         setHoppingPlayerId(p.id);
+  //         let currentStep = 0;
+  //         const stepDelay = Math.max(
+  //           120,
+  //           Math.min(180, Math.floor(1100 / steps)),
+  //         );
+
+  //         const timer = setInterval(() => {
+  //           currentStep++;
+  //           const nextSpace = (prevPos + currentStep) % 40;
+  //           setDisplayPositions((prev) => ({
+  //             ...prev,
+  //             [p.id]: nextSpace,
+  //           }));
+
+  //           if (currentStep >= steps) {
+  //             clearInterval(timer);
+  //             setHoppingPlayerId(null);
+  //           }
+  //         }, stepDelay);
+
+  //         intervals.push(timer);
+  //       }, 700);
+
+  //       timeouts.push(startDelay);
+  //     }
+  //   }
+
+  //   // Cleanup when component unmounts or effect re-runs
+  //   return () => {
+  //     timeouts.forEach(clearTimeout);
+  //     intervals.forEach(clearInterval);
+  //     setHoppingPlayerId(null);
+  //   };
+  // }, [gameState.players]);
+
   useEffect(() => {
     gameState.players.forEach((p) => {
       const prevPos = prevPositionsRef.current[p.id];
@@ -84,6 +152,34 @@ export const Board: React.FC<BoardProps> = ({
           setDisplayPositions((prev) => ({ ...prev, [p.id]: targetPos }));
           return;
         }
+
+        // let timer: ReturnType<typeof setInterval> | null = null;
+        // const startDelayTimeout = setTimeout(() => {
+        //   setHoppingPlayerId(p.id);
+        //   let currentStep = 0;
+        //   const stepDelay = Math.max(
+        //     120,
+        //     Math.min(180, Math.floor(1100 / steps)),
+        //   );
+        //   timer = setInterval(() => {
+        //     currentStep++;
+        //     const nextSpace = (prevPos + currentStep) % 40;
+        //     setDisplayPositions((prev) => ({
+        //       ...prev,
+        //       [p.id]: nextSpace,
+        //     }));
+        //     if (currentStep >= steps) {
+        //       if (timer) clearInterval(timer);
+        //       setHoppingPlayerId(null);
+        //     }
+        //   }, stepDelay);
+        // }, 700);
+        // return () => {
+        //   clearTimeout(startDelayTimeout);
+        //   if (timer) clearInterval(timer);
+        //   setHoppingPlayerId(null);
+        // };
+
         // Stepping animation
         setHoppingPlayerId(p.id);
         let currentStep = 0;
