@@ -119,6 +119,11 @@ namespace Monopoly.Core
         private List<IPlayer> _auctionBidders = new();
         private int _auctionTurnIndex;
 
+        /// =========================================================================================
+        /// GETTER, SETTER.
+        /// =========================================================================================
+
+
         public IPlayer? CurrentAuctionBidder =>
             _auctionBidders.Count > 0 ? _auctionBidders[_auctionTurnIndex % _auctionBidders.Count] : null;
 
@@ -170,6 +175,57 @@ namespace Monopoly.Core
             }
         }
 
+        /// <summary>
+        /// Creates the players, one per name, in join order, each with the matching token color on GO.
+        /// Returns false (and creates nobody) if the names or colors are not valid.
+        /// The board must be initialized first.
+        /// </summary>
+        public bool InitializePlayers(List<IPlayer> players, List<IToken> tokens)
+        {
+            if (Board.Path.Count != BoardData.SquareCount)
+            {
+                throw new InvalidOperationException("Initialize the board before the players.");
+            }
+
+            // ADD NEW VALIDATION
+            if (players == null || tokens == null) return false;
+            if (players.Count < MinPlayers || players.Count > MaxPlayers) return false;
+            if (players.Count != tokens.Count) return false;
+
+            ISpace go = Board.Path[0];
+
+            // 1. Copy to local list first so clearing doesn't wipe the source
+            var playerList = players.ToList();
+
+            Players.Clear();
+            _playerTokens.Clear();
+            _tokenPositions.Clear();
+            _jailTurns.Clear();
+
+            // Reset everything left over from a previous game.
+            foreach (ISpace space in Board.Path)
+            {
+
+                space.Tokens.Clear();
+            }
+
+            for (int i = 0; i < playerList.Count; i++)
+            {
+                IPlayer player = playerList[i];
+                IToken token = tokens[i];
+
+                // token.CurrentPosition = go;
+                _tokenPositions[token] = go;
+                go.Tokens.Add(token);
+
+                Players.Add(player);
+                _playerTokens[player] = token;
+            }
+
+            _currentPlayerIndex = 0;
+            return true;
+        }
+
         public void InitializeCardDecks()
         {
             _chanceDeck.Cards = new Queue<ICard>(CreateChanceCards());
@@ -177,6 +233,42 @@ namespace Monopoly.Core
             ShuffleCard(CardType.Chance);
             ShuffleCard(CardType.CommunityChest);
         }
+
+        /// <summary>
+        /// Take around the Grid. Starting from GO Square
+        /// 
+        /// (   row     column)
+        ///     10          10      GO
+        ///     10          9       Mediteranean Avenue
+        ///     10          8       CC
+        ///     10          7       Baltic Avenue
+        /// </summary>
+        private static (int row, int column) GetGridPosition(int index)
+        {
+            int last = Models.Board.GridSize - 1;
+
+            if (index <= last)
+            {
+                return (last, last - index);          // bottom edge, right to left
+            }
+
+            if (index <= 2 * last)
+            {
+                return (2 * last - index, 0);         // left edge, bottom to top
+            }
+
+            if (index <= 3 * last)
+            {
+                return (0, index - 2 * last);         // top edge, left to right
+            }
+
+            return (index - 3 * last, last);          // right edge, top to bottom
+        }
+
+        /// =========================================================================================
+        /// -------------------------------- CARD PREPARATION ---------------------------------------
+        /// =========================================================================================
+
 
         private static List<ICard> CreateChanceCards()
         {
@@ -223,10 +315,6 @@ namespace Monopoly.Core
                 new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "You inherit $100", 100)
             };
         }
-
-        /// =========================================================================================
-        /// -------------------------------- CARD PREPARATION ---------------------------------------
-        /// =========================================================================================
 
         /// <summary>
         /// Shuffles the specified card deck (CRD-04).
@@ -458,88 +546,6 @@ namespace Monopoly.Core
 
 
 
-        /// <summary>
-        /// Creates the players, one per name, in join order, each with the matching token color on GO.
-        /// Returns false (and creates nobody) if the names or colors are not valid.
-        /// The board must be initialized first.
-        /// </summary>
-        public bool InitializePlayers(List<IPlayer> players, List<IToken> tokens)
-        {
-            if (Board.Path.Count != BoardData.SquareCount)
-            {
-                throw new InvalidOperationException("Initialize the board before the players.");
-            }
-
-            // ADD NEW VALIDATION
-            if (players == null || tokens == null) return false;
-            if (players.Count < MinPlayers || players.Count > MaxPlayers) return false;
-            if (players.Count != tokens.Count) return false;
-
-            ISpace go = Board.Path[0];
-
-            // 1. Copy to local list first so clearing doesn't wipe the source
-            var playerList = players.ToList();
-
-            Players.Clear();
-            _playerTokens.Clear();
-            _tokenPositions.Clear();
-            _jailTurns.Clear();
-
-            // Reset everything left over from a previous game.
-            foreach (ISpace space in Board.Path)
-            {
-
-                space.Tokens.Clear();
-            }
-
-            for (int i = 0; i < playerList.Count; i++)
-            {
-                IPlayer player = playerList[i];
-                IToken token = tokens[i];
-
-                // token.CurrentPosition = go;
-                _tokenPositions[token] = go;
-                go.Tokens.Add(token);
-
-                Players.Add(player);
-                _playerTokens[player] = token;
-            }
-
-            _currentPlayerIndex = 0;
-            return true;
-        }
-
-        /// <summary>
-        /// Take around the Grid. Starting from GO Square
-        /// 
-        /// (   row     column)
-        ///     10          10      GO
-        ///     10          9       Mediteranean Avenue
-        ///     10          8       CC
-        ///     10          7       Baltic Avenue
-        /// </summary>
-        private static (int row, int column) GetGridPosition(int index)
-        {
-            int last = Models.Board.GridSize - 1;
-
-            if (index <= last)
-            {
-                return (last, last - index);          // bottom edge, right to left
-            }
-
-            if (index <= 2 * last)
-            {
-                return (2 * last - index, 0);         // left edge, bottom to top
-            }
-
-            if (index <= 3 * last)
-            {
-                return (0, index - 2 * last);         // top edge, left to right
-            }
-
-            return (index - 3 * last, last);          // right edge, top to bottom
-        }
-
         /// <summary>The player whose turn it is.</summary>
         public IPlayer GetCurrentPlayer()
         {
@@ -662,14 +668,10 @@ namespace Monopoly.Core
             return SendMoney(otherPlayer, amount, player);
         }
 
-        /// <summary>The owner of a property, or null if the Bank still owns it.</summary>
-        public IPlayer? GetPropertyOwner(IProperty property)
-        {
-            return _propertyOwners.TryGetValue(property, out IPlayer? owner) ? owner : null;
-        }
+
 
         /// =========================================================================================
-        /// ------------------------------- MOVE, DICE ROLL, & ---------------------------------------
+        /// ------------------------------- MOVE, DICE ROLL, & --------------------------------------
         /// =========================================================================================
 
         private int RollDiceValues(IPlayer player)
@@ -1034,6 +1036,11 @@ namespace Monopoly.Core
             }
         }
 
+
+        /// =========================================================================================
+        /// ---------------------------------- PROPERTY STUFFS --------------------------------------
+        /// =========================================================================================
+
         /// <summary>
         /// Buys an unowned property from the Bank at its printed price (PRP-10, PRP-11).
         /// Returns true if the purchase succeeded, or false if already owned, bankrupt, or insufficient funds.
@@ -1305,6 +1312,12 @@ namespace Monopoly.Core
             property.IsMortgaged = false;
 
             return true;
+        }
+
+        /// <summary>The owner of a property, or null if the Bank still owns it.</summary>
+        public IPlayer? GetPropertyOwner(IProperty property)
+        {
+            return _propertyOwners.TryGetValue(property, out IPlayer? owner) ? owner : null;
         }
 
         /// =========================================================================================
@@ -2144,8 +2157,6 @@ namespace Monopoly.Core
         /// =========================================================================================
         /// --------------------------------------- AUCTION -----------------------------------------
         /// =========================================================================================
-
-
 
         public IProperty? AuctionProperty => _auctionProperty;
         public IPlayer? HighestBidder => _highestBidder;
