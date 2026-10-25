@@ -1,6 +1,6 @@
 import { GameStateDto, StartPlayerInput } from "../types/game";
 
-export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5206";
+export const API_BASE =  import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5206`;
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {

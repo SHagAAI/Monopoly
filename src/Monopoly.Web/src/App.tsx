@@ -60,7 +60,6 @@ export default function App() {
     async function init() {
       try {
         await startSignalR((newState) => {
-        
           console.log("[App] New state from SignalR:", newState);
           setGameState(newState);
 
@@ -81,10 +80,14 @@ export default function App() {
       // Initial HTTP fetch
       try {
         const state = await api.getState();
-        if (isMounted) setGameState(state);
+
+        if (isMounted) {
+          setGameState(state);
+          setShowStartModal(false);
+        }
       } catch {
         // If 404 / no active game, prompt new game setup
-        if (isMounted) setShowStartModal(true);
+        if (isMounted) setShowStartModal(false);
       }
     }
 
@@ -140,9 +143,15 @@ export default function App() {
             }}
           >
             <span>Playing as:</span>
-            <strong style={{ color: "#38bdf8" }}>
+            {/* <strong style={{ color: "#38bdf8" }}>
               {gameState.players.find((p) => p.id === myPlayerId)?.name ||
                 `Player ${myPlayerId}`}
+            </strong> */}
+            <strong style={{ color: "#38bdf8" }}>
+              {myPlayerId === 1
+                ? "👑 Host (Player 1)"
+                : gameState.players.find((p) => p.id === myPlayerId)?.name ||
+                  `Player ${myPlayerId}`}
             </strong>
             <button
               onClick={() => setMyPlayerId(null)}
@@ -170,14 +179,15 @@ export default function App() {
               {signalRConnected ? "SignalR Live Sync" : "Connecting..."}
             </span>
           </div>
-
-          <button
-            className="btn btn-secondary"
-            style={{ padding: "6px 14px", fontSize: "0.8rem" }}
-            onClick={() => setShowStartModal(true)}
-          >
-            <RotateCcw size={14} /> New Game
-          </button>
+          {myPlayerId === 1 && (
+            <button
+              className="btn btn-secondary"
+              style={{ padding: "6px 14px", fontSize: "0.8rem" }}
+              onClick={() => setShowStartModal(true)}
+            >
+              <RotateCcw size={14} /> New Game
+            </button>
+          )}
         </div>
       </header>
 
@@ -249,21 +259,125 @@ export default function App() {
           style={{
             display: "flex",
             flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            flex: 1,
-            gap: 16,
+            gap: 12,
+            width: "100%",
+            marginTop: 8,
           }}
         >
-          <div style={{ fontSize: "3rem" }}>🎩</div>
-          <h2>Welcome to Monopoly Live</h2>
-          <p style={{ color: "#94a3b8" }}>No active match found on server.</p>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowStartModal(true)}
-          >
-            Start New Game
-          </button>
+          {myPlayerId && myPlayerId !== 1 ? (
+            /* Case A: Already selected as Player 2 / non-host -> NO start button, only wait card */
+            <div
+              style={{
+                background: "#1e293b",
+                padding: "16px 20px",
+                borderRadius: 12,
+                fontSize: "0.95rem",
+                color: "#e2e8f0",
+                border: "1px solid #3b82f6",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: "2rem", marginBottom: 8 }}>⏳</div>
+              <strong style={{ color: "#38bdf8", fontSize: "1.05rem" }}>
+                You are joined as Player {myPlayerId}
+              </strong>
+              <p
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "0.85rem",
+                  marginTop: 6,
+                  margin: 0,
+                }}
+              >
+                Waiting for Host (Player 1) to start the match...
+                <br />
+                You will automatically enter as soon as the Host begins!
+              </p>
+              <button
+                className="btn btn-secondary"
+                style={{
+                  marginTop: 12,
+                  padding: "4px 12px",
+                  fontSize: "0.75rem",
+                }}
+                onClick={() => {
+                  localStorage.removeItem("monopoly_my_player_id");
+                  setMyPlayerId(null);
+                }}
+              >
+                Change Role
+              </button>
+            </div>
+          ) : myPlayerId === 1 ? (
+            /* Case B: Host (Player 1) */
+            <>
+              <button
+                className="btn btn-primary btn-lg"
+                onClick={() => setShowStartModal(true)}
+                style={{ width: "100%" }}
+              >
+                👑 Start Game as Host (Player 1)
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: "6px 12px", fontSize: "0.8rem" }}
+                onClick={() => {
+                  localStorage.removeItem("monopoly_my_player_id");
+                  setMyPlayerId(null);
+                }}
+              >
+                Switch Role
+              </button>
+            </>
+                    ) : (
+            /* Case C: Fresh visitor (Incognito or Phone before match starts) */
+            <>
+              <button
+                className="btn btn-primary btn-lg"
+                onClick={() => {
+                  handleSelectPlayer(1);
+                  setShowStartModal(true);
+                }}
+                style={{ width: "100%" }}
+              >
+                👑 I am the Host (Player 1)
+              </button>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "0.85rem",
+                  margin: "6px 0 2px 0",
+                  textAlign: "center",
+                }}
+              >
+                — or select your seat to join —
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                  gap: 10,
+                  width: "100%",
+                }}
+              >
+                {[2, 3, 4, 5, 6].map((pNum) => (
+                  <button
+                    key={pNum}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: "10px 14px",
+                      fontWeight: 700,
+                      fontSize: "0.9rem",
+                    }}
+                    onClick={() => handleSelectPlayer(pNum)}
+                  >
+                    🎮 Player {pNum}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -346,7 +460,7 @@ export default function App() {
       )}
 
       {/* 5. Start Game Modal */}
-      {showStartModal && (
+      {showStartModal && (!myPlayerId || myPlayerId === 1) && (
         <StartGameModal onStart={handleStartGame} loading={loading} />
       )}
 
