@@ -2208,6 +2208,11 @@ namespace Monopoly.Core
             if (_auctionProperty == null) return false;
             if (player == null || player.IsBankrupt || _isGameOver) return false; // to make sure it is your turn
 
+            if (player != CurrentAuctionBidder) return false;
+
+            // Cannot bid against yourself!
+            if (player == _highestBidder) return false;
+
             // Bid must be higher than current top bid, and player must actually have the cash
             if (amount <= _highestBid || player.Money < amount)
             {
@@ -2219,11 +2224,19 @@ namespace Monopoly.Core
 
             OnBidPlaced?.Invoke(player, amount);
 
-            // Advance bidding turn to the next remaining bidder
-            if (_auctionBidders.Count > 1)
+            if (_auctionBidders.Count <= 1)
             {
-                _auctionTurnIndex = (_auctionTurnIndex + 1) % _auctionBidders.Count;
+                HandleAuction(_auctionProperty);
+                return true;
             }
+
+            // Advance bidding turn to the next remaining bidder
+            // if (_auctionBidders.Count > 1)
+            // {
+            //     _auctionTurnIndex = (_auctionTurnIndex + 1) % _auctionBidders.Count;
+            // }
+
+            _auctionTurnIndex = (_auctionTurnIndex + 1) % _auctionBidders.Count;
             return true;
         }
 
