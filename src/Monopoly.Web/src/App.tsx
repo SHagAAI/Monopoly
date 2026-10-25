@@ -60,17 +60,12 @@ export default function App() {
     async function init() {
       try {
         await startSignalR((newState) => {
-          // if (isMounted) {
-          //   setGameState(newState);
-          //   // Refresh selected space if it's currently open in modal
-          //   setSelectedSpace((prev) =>
-          //     prev
-          //       ? newState.spaces.find((s) => s.index === prev.index) || null
-          //       : null,
-          //   );
-          // }
+        
           console.log("[App] New state from SignalR:", newState);
           setGameState(newState);
+
+          // (MULTIPLAYER)
+          setShowStartModal(false);
           setSelectedSpace((prev) =>
             prev
               ? newState.spaces.find((s) => s.index === prev.index) || null
@@ -128,7 +123,7 @@ export default function App() {
       <header className="top-navbar">
         <div className="logo-area">
           <span style={{ fontSize: "1.6rem" }}>🎲</span>
-          <h1 className="logo-title">MONOPOLY LIVE</h1>
+          <h1 className="logo-title">MONOPOLY</h1>
         </div>
 
         {/* MULTIPLAYER */}

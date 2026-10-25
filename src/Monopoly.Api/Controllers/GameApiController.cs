@@ -43,6 +43,13 @@ namespace Monopoly.Api.Controllers
             {
                 return BadRequest("Must have 2 to 6 players.");
             }
+
+            // Validate unique token colors
+            if (request.Players.Select(p => p.Color).Distinct().Count() != request.Players.Count)
+            {
+                return BadRequest("Each player must choose a unique token color.");
+            }
+
             var players = new List<IPlayer>();
             var tokens = new List<IToken>();
             // foreach (var p in request.Players)
