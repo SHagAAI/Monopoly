@@ -32,14 +32,15 @@ namespace Monopoly.Core
         private int _currentPlayerIndex;
 
         /// <summary>Houses still in the Bank.</summary>
-        public int houseAmount { get; set; } = StartingHouses;
-
+        public int HouseAmount { get; set; } = StartingHouses;
+        //harus pascal
         /// <summary>Hotels still in the Bank.</summary>
-        public int hotelAmount { get; set; } = StartingHotels;
+        public int HotelAmount { get; set; } = StartingHotels;
 
         private int _doubleCount;
-        private readonly ICardDeck _chanceDeck = new Carddeck();
-        private readonly ICardDeck _communityChestDeck = new Carddeck();
+        // pascal
+        private readonly ICardDeck _chanceDeck = new CardDeck();
+        private readonly ICardDeck _communityChestDeck = new CardDeck();
         private bool _isGameOver;
 
         /// FLAG, Bug fixing, (API can call RollDice again and again)
@@ -54,8 +55,6 @@ namespace Monopoly.Core
 
         public ICard? LastDrawnCard { get; private set; }
         public void ClearLastDrawnCard() => LastDrawnCard = null;
-
-
 
         /// =========================================================================================
         /// ------------------------------- DEBT AND BANKRUPTCY HELPER ------------------------------
@@ -228,8 +227,11 @@ namespace Monopoly.Core
 
         public void InitializeCardDecks()
         {
-            _chanceDeck.Cards = new Queue<ICard>(CreateChanceCards());
-            _communityChestDeck.Cards = new Queue<ICard>(CreateCommunityChestCards());
+            // _chanceDeck.Cards = new Queue<ICard>(CreateChanceCards());
+            // _communityChestDeck.Cards = new Queue<ICard>(CreateCommunityChestCards());
+
+            _chanceDeck.Cards = new Queue<ICard>(BoardData.CreateChanceCards());
+            _communityChestDeck.Cards = new Queue<ICard>(BoardData.CreateCommunityChestCards());
             ShuffleCard(CardType.Chance);
             ShuffleCard(CardType.CommunityChest);
         }
@@ -268,53 +270,6 @@ namespace Monopoly.Core
         /// =========================================================================================
         /// -------------------------------- CARD PREPARATION ---------------------------------------
         /// =========================================================================================
-
-
-        private static List<ICard> CreateChanceCards()
-        {
-            return new List<ICard>
-            {
-                new Card(CardType.Chance, CardEffect.MoveToPosition, "Advance to Boardwalk", 39),
-                new Card(CardType.Chance, CardEffect.MoveToPosition, "Advance to GO (Collect $200)", 0),
-                new Card(CardType.Chance, CardEffect.MoveToPosition, "Advance to Illinois Avenue", 24),
-                new Card(CardType.Chance, CardEffect.MoveToPosition, "Advance to St. Charles Place. If you pass GO, collect $200", 11),
-                new Card(CardType.Chance, CardEffect.MoveToNearestRailroad, "Advance to nearest Railroad. If unowned, you may buy it. If owned, pay owner twice the rent", null),
-                new Card(CardType.Chance, CardEffect.MoveToNearestRailroad, "Advance to nearest Railroad. If unowned, you may buy it. If owned, pay owner twice the rent", null),
-                new Card(CardType.Chance, CardEffect.MoveToNearestUtility, "Advance to nearest Utility. If unowned, you may buy it. If owned, throw dice and pay owner 10 times the dice throw", null),
-                new Card(CardType.Chance, CardEffect.ReceiveMoney, "Bank pays you dividend of $50", 50),
-                new Card(CardType.Chance, CardEffect.GetOutOfJailFree, "Get Out of Jail Free. This card may be kept until needed or sold", null),
-                new Card(CardType.Chance, CardEffect.MoveSteps, "Go Back 3 Spaces", -3),
-                new Card(CardType.Chance, CardEffect.GoToJail, "Go to Jail. Go directly to Jail, do not pass GO, do not collect $200", null),
-                new Card(CardType.Chance, CardEffect.Repairs, "Make general repairs on all your property. For each house pay $25, for each hotel pay $100", null),
-                new Card(CardType.Chance, CardEffect.PayMoney, "Speeding fine $15", 15),
-                new Card(CardType.Chance, CardEffect.MoveToPosition, "Take a trip to Reading Railroad. If you pass GO, collect $200", 5),
-                new Card(CardType.Chance, CardEffect.PayEachPlayer, "You have been elected Chairman of the Board. Pay each player $50", 50),
-                new Card(CardType.Chance, CardEffect.ReceiveMoney, "Your building loan matures. Collect $150", 150)
-            };
-        }
-
-        private static List<ICard> CreateCommunityChestCards()
-        {
-            return new List<ICard>
-            {
-                new Card(CardType.CommunityChest, CardEffect.MoveToPosition, "Advance to GO (Collect $200)", 0),
-                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "Bank error in your favor. Collect $200", 200),
-                new Card(CardType.CommunityChest, CardEffect.PayMoney, "Doctor’s fee. Pay $50", 50),
-                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "From sale of stock you get $50", 50),
-                new Card(CardType.CommunityChest, CardEffect.GetOutOfJailFree, "Get Out of Jail Free. This card may be kept until needed or sold", null),
-                new Card(CardType.CommunityChest, CardEffect.GoToJail, "Go to Jail. Go directly to Jail, do not pass GO, do not collect $200", null),
-                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "Holiday fund matures. Receive $100", 100),
-                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "Income tax refund. Collect $20", 20),
-                new Card(CardType.CommunityChest, CardEffect.ReceiveFromEachPlayer, "It is your birthday. Collect $10 from every player", 10),
-                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "Life insurance matures. Collect $100", 100),
-                new Card(CardType.CommunityChest, CardEffect.PayMoney, "Pay hospital fees of $100", 100),
-                new Card(CardType.CommunityChest, CardEffect.PayMoney, "Pay school fees of $50", 50),
-                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "Receive $25 consultancy fee", 25),
-                new Card(CardType.CommunityChest, CardEffect.Repairs, "You are assessed for street repairs. $40 per house, $115 per hotel", null),
-                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "You have won second prize in a beauty contest. Collect $10", 10),
-                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "You inherit $100", 100)
-            };
-        }
 
         /// <summary>
         /// Shuffles the specified card deck (CRD-04).
@@ -674,7 +629,7 @@ namespace Monopoly.Core
         /// ------------------------------- MOVE, DICE ROLL, & --------------------------------------
         /// =========================================================================================
 
-        private int RollDiceValues(IPlayer player)
+        private int RollDice(IPlayer player)
         {
             Dice.Side1 = _random.Next(1, 7);
             Dice.Side2 = _random.Next(1, 7);
@@ -685,7 +640,7 @@ namespace Monopoly.Core
         /// <summary>
         /// Rolls the two dice for the current player, resolves jail/doubles rules, and initiates movement.
         /// </summary>
-        public void RollDice()
+        public void RollandMoveChecking()
         {
 
             // Block if not allowed to roll right now
@@ -701,13 +656,7 @@ namespace Monopoly.Core
             IPlayer player = GetCurrentPlayer();
             IToken token = _playerTokens[player];
 
-            // Roll 2 six-sided dice (1 to 6)
-
-            // Dice.Side1 = _random.Next(1, 7);
-            // Dice.Side2 = _random.Next(1, 7);
-            // int total = Dice.Side1 + Dice.Side2;
-
-            int total = RollDiceValues(player);
+            int total = RollDice(player);
             bool isDouble = Dice.Side1 == Dice.Side2;
 
             // --- JAIL LOGIC (PLR-23, PLR-27, DCE-06) ---
@@ -1155,7 +1104,7 @@ namespace Monopoly.Core
                         /// if you land on utility because of card, you got 
                         /// automatically charge 10x
 
-                        int reroll = RollDiceValues(player);
+                        int reroll = RollDice(player);
                         rent = reroll * 10;
                     }
                     else
@@ -1350,7 +1299,7 @@ namespace Monopoly.Core
             }
 
             // 3. The Bank must have houses in stock (PRP-50, PRP-56)
-            if (houseAmount <= 0)
+            if (HouseAmount <= 0)
             {
                 return false;
             }
@@ -1391,7 +1340,7 @@ namespace Monopoly.Core
 
             // 8. Update building level and deduct 1 house from the Bank supply
             property.BuildingLevel++;
-            houseAmount--;
+            HouseAmount--;
 
             return true;
         }
@@ -1446,7 +1395,7 @@ namespace Monopoly.Core
 
             // 6. Step down building level and return 1 house to the Bank's supply
             property.BuildingLevel--;
-            houseAmount++;
+            HouseAmount++;
 
             return true;
         }
@@ -1483,7 +1432,7 @@ namespace Monopoly.Core
             }
 
             // 4. The Bank must have a hotel in stock (PRP-60: Bank has 12 hotels total)
-            if (hotelAmount <= 0)
+            if (HotelAmount <= 0)
             {
                 return false;
             }
@@ -1522,10 +1471,10 @@ namespace Monopoly.Core
 
             // 9. Exchange buildings with the Bank (PRP-62):
             // The 4 houses on this property return to the Bank's supply
-            houseAmount += 4;
+            HouseAmount += 4;
 
             // 1 hotel is taken from the Bank's supply
-            hotelAmount--;
+            HotelAmount--;
 
             // Upgrade to level 5 (Hotel)
             property.BuildingLevel = 5;
@@ -1565,7 +1514,7 @@ namespace Monopoly.Core
             // 4. Housing Shortage Check (PRP-65):
             // Stepping down to 4 houses requires the Bank to supply 4 physical houses.
             // If the Bank has fewer than 4 houses, the voluntary sale is DENIED.
-            if (houseAmount < 4)
+            if (HouseAmount < 4)
             {
 
                 // If it's a voluntary sale, it's denied (PRP-65)
@@ -1588,10 +1537,10 @@ namespace Monopoly.Core
 
             // 6. Exchange buildings with the Bank:
             // 1 hotel returns to the Bank's supply
-            hotelAmount++;
+            HotelAmount++;
 
             // 4 houses are taken from the Bank's supply to place on this property
-            houseAmount -= 4;
+            HouseAmount -= 4;
 
             // 7. Property steps down from level 5 (Hotel) to level 4 (4 Houses)
             property.BuildingLevel = 4;
@@ -1620,12 +1569,12 @@ namespace Monopoly.Core
                 // If it has a hotel (level 5), return 1 hotel to Bank
                 if (street.BuildingLevel == 5)
                 {
-                    hotelAmount++;
+                    HotelAmount++;
                 }
                 else
                 {
                     // Return houses to Bank
-                    houseAmount += street.BuildingLevel;
+                    HouseAmount += street.BuildingLevel;
                 }
 
                 // Each level is refunded at half price (PRP-59, PRP-66)
@@ -1678,11 +1627,11 @@ namespace Monopoly.Core
                 {
                     if (street.BuildingLevel == 5)
                     {
-                        hotelAmount++; // Hotel returns to Bank
+                        HotelAmount++; // Hotel returns to Bank
                     }
                     else
                     {
-                        houseAmount += street.BuildingLevel; // Houses return to Bank
+                        HotelAmount += street.BuildingLevel; // Houses return to Bank
                     }
 
                     buildingRefundTotal += street.BuildingLevel * (street.HouseCost!.Value / 2);
@@ -2298,26 +2247,6 @@ namespace Monopoly.Core
 
             return winner;
         }
-
-
-
-
-        /// <summary>
-        /// Direct execution overload: awards the auctioned property to the specified winner for the winning bid.
-        /// </summary>
-        // public IPlayer? HandleAuction(IProperty property, IPlayer winner, int winningBid)
-        // {
-        //     if (property == null || winner == null || winningBid < 0) return null;
-        //     if (winner.IsBankrupt || _isGameOver) return null;
-
-        //     if (!SendMoney(winner, winningBid))
-        //     {
-        //         return null; // Winner cannot afford the bid
-        //     }
-
-        //     _propertyOwners[property] = winner;
-        //     return winner;
-        // }
 
 
     }

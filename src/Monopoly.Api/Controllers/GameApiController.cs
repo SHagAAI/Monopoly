@@ -92,7 +92,7 @@ namespace Monopoly.Api.Controllers
             }
 
 
-            _gameService.Engine.RollDice();
+            _gameService.Engine.RollandMoveChecking();
             // return Ok(GetState());
 
             return StateResult();
@@ -665,8 +665,8 @@ namespace Monopoly.Api.Controllers
                 CurrentPlayerId = currPlayer.Id,
                 CurrentPlayerName = currPlayer.Name,
 
-                BankHouses = engine.houseAmount,
-                BankHotels = engine.hotelAmount,
+                BankHouses = engine.HouseAmount,
+                BankHotels = engine.HotelAmount,
 
                 CanRollAgain = engine.CanRollAgain(),
                 CanRoll = engine.CanRoll(),

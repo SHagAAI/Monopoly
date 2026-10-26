@@ -6,7 +6,7 @@ using Monopoly.Core.Interfaces;
 
 namespace Monopoly.Core.Models
 {
-    public class Carddeck : ICardDeck
+    public class CardDeck : ICardDeck
     {
         public Queue<ICard> Cards { get; set; } = new Queue<ICard>();
     }

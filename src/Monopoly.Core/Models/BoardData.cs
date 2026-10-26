@@ -63,6 +63,54 @@ namespace Monopoly.Core.Models
         };
         }
 
+        // Create Chance Card
+        public static List<ICard> CreateChanceCards()
+        {
+            return new List<ICard>
+            {
+                new Card(CardType.Chance, CardEffect.MoveToPosition, "Advance to Boardwalk", 39),
+                new Card(CardType.Chance, CardEffect.MoveToPosition, "Advance to GO (Collect $200)", 0),
+                new Card(CardType.Chance, CardEffect.MoveToPosition, "Advance to Illinois Avenue", 24),
+                new Card(CardType.Chance, CardEffect.MoveToPosition, "Advance to St. Charles Place. If you pass GO, collect $200", 11),
+                new Card(CardType.Chance, CardEffect.MoveToNearestRailroad, "Advance to nearest Railroad. If unowned, you may buy it. If owned, pay owner twice the rent", null),
+                new Card(CardType.Chance, CardEffect.MoveToNearestRailroad, "Advance to nearest Railroad. If unowned, you may buy it. If owned, pay owner twice the rent", null),
+                new Card(CardType.Chance, CardEffect.MoveToNearestUtility, "Advance to nearest Utility. If unowned, you may buy it. If owned, throw dice and pay owner 10 times the dice throw", null),
+                new Card(CardType.Chance, CardEffect.ReceiveMoney, "Bank pays you dividend of $50", 50),
+                new Card(CardType.Chance, CardEffect.GetOutOfJailFree, "Get Out of Jail Free. This card may be kept until needed or sold", null),
+                new Card(CardType.Chance, CardEffect.MoveSteps, "Go Back 3 Spaces", -3),
+                new Card(CardType.Chance, CardEffect.GoToJail, "Go to Jail. Go directly to Jail, do not pass GO, do not collect $200", null),
+                new Card(CardType.Chance, CardEffect.Repairs, "Make general repairs on all your property. For each house pay $25, for each hotel pay $100", null),
+                new Card(CardType.Chance, CardEffect.PayMoney, "Speeding fine $15", 15),
+                new Card(CardType.Chance, CardEffect.MoveToPosition, "Take a trip to Reading Railroad. If you pass GO, collect $200", 5),
+                new Card(CardType.Chance, CardEffect.PayEachPlayer, "You have been elected Chairman of the Board. Pay each player $50", 50),
+                new Card(CardType.Chance, CardEffect.ReceiveMoney, "Your building loan matures. Collect $150", 150)
+            };
+        }
+
+        // Create Community Chest
+        public static List<ICard> CreateCommunityChestCards()
+        {
+            return new List<ICard>
+            {
+                new Card(CardType.CommunityChest, CardEffect.MoveToPosition, "Advance to GO (Collect $200)", 0),
+                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "Bank error in your favor. Collect $200", 200),
+                new Card(CardType.CommunityChest, CardEffect.PayMoney, "Doctor’s fee. Pay $50", 50),
+                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "From sale of stock you get $50", 50),
+                new Card(CardType.CommunityChest, CardEffect.GetOutOfJailFree, "Get Out of Jail Free. This card may be kept until needed or sold", null),
+                new Card(CardType.CommunityChest, CardEffect.GoToJail, "Go to Jail. Go directly to Jail, do not pass GO, do not collect $200", null),
+                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "Holiday fund matures. Receive $100", 100),
+                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "Income tax refund. Collect $20", 20),
+                new Card(CardType.CommunityChest, CardEffect.ReceiveFromEachPlayer, "It is your birthday. Collect $10 from every player", 10),
+                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "Life insurance matures. Collect $100", 100),
+                new Card(CardType.CommunityChest, CardEffect.PayMoney, "Pay hospital fees of $100", 100),
+                new Card(CardType.CommunityChest, CardEffect.PayMoney, "Pay school fees of $50", 50),
+                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "Receive $25 consultancy fee", 25),
+                new Card(CardType.CommunityChest, CardEffect.Repairs, "You are assessed for street repairs. $40 per house, $115 per hotel", null),
+                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "You have won second prize in a beauty contest. Collect $10", 10),
+                new Card(CardType.CommunityChest, CardEffect.ReceiveMoney, "You inherit $100", 100)
+            };
+        }
+
         // The mortgage value of every property is half of its price.
 
         private static ISpace Street(string name, ColorGroup group, int price, int houseCost, int[] rents)
