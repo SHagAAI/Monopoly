@@ -45,7 +45,7 @@ namespace Monopoly.Core
         /// FLAG, Bug fixing, (API can call RollDice again and again)
         private bool _hasRolled;
 
-        /// FLAG, Bug fixing, (Game cant continue when everyone decline buying property)
+        /// FLAG, Bug fixing, (Bug : Game cant continue when everyone decline buying property)
         private bool _propertyDecisionResolved = true;
 
         // ========================================================================================
@@ -795,6 +795,7 @@ namespace Monopoly.Core
         }
 
         // Helper: checks if the current player is standing on an unowned purchasable property
+        // need to buy or auction
         public bool HasUnresolvedPropertyUnderfoot()
         {
             if (_propertyDecisionResolved) return false; // auction is done already/bought
