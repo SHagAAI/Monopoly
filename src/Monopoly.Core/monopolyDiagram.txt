@@ -1,6 +1,6 @@
 classDiagram
 
-    class GameController {
+    class GameEngine {
         +IBoard Board
         +IDice Dice
         +List~IPlayer~ Players
@@ -15,13 +15,34 @@ classDiagram
         -ICardDeck _chanceDeck
         -ICardDeck _communityChestDeck
         -bool _isGameOver
+        +ICard? LastDrawnCard
+        +bool HasActiveAuction
+        +IProperty? AuctionProperty
+        +IPlayer? HighestBidder
+        +int HighestBid
+        +IPlayer? CurrentAuctionBidder
+        +bool HasPendingTrade
+        +IPlayer? TradeBuyer
+        +IPlayer? TradeSeller
+        +List~IProperty~? TradeProperties
+        +int TradeOffer
+        +bool HasPendingCardTrade
+        +IPlayer? CardTradeBuyer
+        +IPlayer? CardTradeSeller
+        +int CardTradeOffer
         +Action~IToken, ISpace~ OnPlayerMoved
         +Action~IPlayer~ OnTurnChanged
         +Action~IPlayer~ OnPlayerMoneyChanged
         +Action~IPlayer, ICard~ OnCardEffect
         +Action~IPlayer~ OnPlayerBankrupt
+        +Action~IPlayer, int, int~ OnDiceRolled
+        +Action~IPlayer, IPlayer, List~IProperty~, int~ OnTradeOffered
+        +Action~IPlayer, IPlayer, int~ OnCardTradeOffered
+        +Action~IProperty~ OnAuctionStarted
+        +Action~IPlayer, int~ OnBidPlaced
+        +Action~IProperty, IPlayer, int~ OnAuctionEnded
 
-        +GameController(IBoard board, IDice dice, List~IPlayer~ players)
+        +GameEngine(IBoard board, IDice dice, List~IPlayer~ players)
         +InitializeBoard() void
         +InitializeSpace() void
         +InitializePath() void
@@ -31,40 +52,61 @@ classDiagram
         +StartGame() void
         +EndGame() void
         +RollDice() void
-        +Move(IToken token, int steps) void
-        +HandleLanding(IPlayer player) void
+        +CanRoll() bool
+        +CanRollAgain() bool
+        +CanEndTurn() bool
+        +Move(IToken token, int steps, bool fromCard) void
+        +ResolveLanding(IPlayer player, bool fromCard) void
         +EndTurn() void
         +NextTurn() bool
         +ShuffleCard(CardType cardType) void
         +DrawCard(IPlayer player, CardType cardType) void
+        +ExecuteCardEffect(IPlayer player, ICard card) void
         +ReturnCard(ICard card, CardType cardType) void
+        +ClearLastDrawnCard() void
         +SendMoney(IPlayer player, int amount) bool
         +SendMoney(IPlayer player, int amount, IPlayer otherPlayer) bool
         +ReceiveMoney(IPlayer player, int amount) void
         +ReceiveMoney(IPlayer player, int amount, IPlayer otherPlayer) bool
+        +HasPendingDebt() bool
+        +HasPendingDebt(IPlayer player) bool
+        +PayPendingDebt(IPlayer debtor) bool
         +HandleBankruptcy(IPlayer player) bool
+        +HasUnresolvedPropertyUnderfoot() bool
         +BuyProperty(IPlayer player, IProperty property) bool
+        +DeclineProperty(IPlayer player, IProperty property) void
         +SellProperty(IPlayer player, IProperty property) bool
         +TradeProperty(IPlayer buyer, IPlayer seller, List~IProperty~ properties, int offer) bool
+        +ProposeTrade(IPlayer buyer, IPlayer seller, List~IProperty~ properties, int offer) bool
+        +AcceptTrade(IPlayer seller) bool
+        +DeclineTrade(IPlayer seller) void
+        +TradeCard(IPlayer buyer, IPlayer seller, int offer) bool
+        +ProposeCardTrade(IPlayer buyer, IPlayer seller, int offer) bool
+        +AcceptCardTrade(IPlayer seller) bool
+        +DeclineCardTrade(IPlayer seller) void
         +GetPropertyOwner(IProperty property) IPlayer?
-        +HandleAuction(IProperty property) IPlayer
+        +StartAuction(IProperty property) bool
+        +PlaceBid(IPlayer player, int amount) bool
+        +PassBid(IPlayer player) bool
+        +HandleAuction(IProperty property) IPlayer?
         +HandleMortgage(IPlayer player, IProperty property) bool
         +HandleMortgageRedemption(IPlayer player, IProperty property) bool
         +BuyHouse(IPlayer player, IProperty property) bool
         +BuyHotel(IPlayer player, IProperty property) bool
         +SellHouse(IPlayer player, IProperty property) bool
         +SellHotel(IPlayer player, IProperty property) bool
-        +TradeCard(IPlayer buyer, IPlayer seller, int offer) bool
-        +HandleRentPayment(IPlayer player, IProperty property) void
-        +ExecuteCardEffect(IPlayer player, ICard card) void
+        +HandleRentPayment(IPlayer player, IProperty property, bool fromCard) void
         +SendToJail(IPlayer player) void
-        +HandleGetOutOfJail(IPlayer player) bool
+        +HandleGetOutOfJail(IPlayer player, bool? useCard) bool
         +CheckGameOver() bool
-        +GetWinner() IPlayer
+        +GetWinner() IPlayer?
+        +GetPlayerToken(IPlayer player) IToken?
+        +GetPlayerPosition(IPlayer player) ISpace?
     }
 
     class IPlayer {
         <<Interface>>
+        +int Id
         +string Name
         +int Money
         +bool IsBankrupt
@@ -72,8 +114,9 @@ classDiagram
         +int JailFreeCard
     }
 
-        class Player {
-        +Player(string name)
+    class Player {
+        +int Id
+        +Player(int id, string name)
     }
 
     class IBoard {
@@ -84,7 +127,7 @@ classDiagram
     }
 
     class Board {
-        +int GridSize = 11 $
+        +int GridSize$ = 11
         +Board()
     }
 
@@ -178,8 +221,8 @@ classDiagram
         +Queue~ICard~ Cards
     }
 
-    class CardDeck {
-        +CardDeck()
+    class Carddeck {
+        +Carddeck()
     }
 
     class CardType {
@@ -222,15 +265,15 @@ classDiagram
         Orange
     }
 
-    GameController "1" --> "*" IPlayer: manages
-    GameController "1" --> "1" IBoard: uses
-    GameController "1" --> "1" IDice: uses
-    GameController "1" *-- "2" ICardDeck : manages
+    GameEngine "1" --> "*" IPlayer: manages
+    GameEngine "1" --> "1" IBoard: uses
+    GameEngine "1" --> "1" IDice: uses
+    GameEngine "1" *-- "2" ICardDeck : manages
 
     IBoard "1" *-- "*" ISpace: has
     ISpace "1" o-- "0..1" IProperty: contains
     IPlayer "0..1" <-- "0..*" IProperty: owned by
-    GameController "1" --> "*" IToken: keeps one per player
+    GameEngine "1" --> "*" IToken: keeps one per player
     ICardDeck "1" o-- "*" ICard : contains
 
     ISpace --> SpaceType
@@ -240,7 +283,6 @@ classDiagram
     ICard --> CardEffect
     IToken --> TokenColor
 
-
     Player ..|> IPlayer
     Dice ..|> IDice
     Board ..|> IBoard
@@ -248,4 +290,4 @@ classDiagram
     Space ..|> ISpace
     Property ..|> IProperty
     Card ..|> ICard
-    CardDeck ..|> ICardDeck
+    Carddeck ..|> ICardDeck

@@ -1813,9 +1813,6 @@ namespace Monopoly.Core
         {
 
             _pendingDebts.Add((debtor, creditor, amount));
-            // _pendingDebtAmount = amount;
-            // _pendingDebtor = debtor;
-            // _pendingCreditor = creditor; // null means the creditor is the Bank
         }
 
 
