@@ -29,6 +29,7 @@ namespace Monopoly.Core
 
         Dictionary<IPlayer, int> _jailTurns = new Dictionary<IPlayer, int>();
 
+        // change in EndTurn, NextTurn
         private int _currentPlayerIndex;
 
         /// <summary>Houses still in the Bank.</summary>
@@ -37,11 +38,15 @@ namespace Monopoly.Core
         /// <summary>Hotels still in the Bank.</summary>
         public int HotelAmount { get; set; } = StartingHotels;
 
+        // Counter how many times player throwing a double
         private int _doubleCount;
         // pascal
+        
         private readonly ICardDeck _chanceDeck = new CardDeck();
         private readonly ICardDeck _communityChestDeck = new CardDeck();
-        private bool _isGameOver;
+        // private bool _isGameOver;
+
+        public GameStatus Status { get; private set; } = GameStatus.NotStarted;
 
         /// FLAG, Bug fixing, (API can call RollDice again and again)
         private bool _hasRolled;
@@ -60,8 +65,9 @@ namespace Monopoly.Core
         /// ------------------------------- DEBT AND BANKRUPTCY HELPER ------------------------------
         /// =========================================================================================
 
-        // Replaces the old scalar fields with a single chronological list (zero new classes)
-        private readonly List<(IPlayer Debtor, IPlayer? Creditor, int Amount)> _pendingDebts = new();
+        // Replace tuple with class 
+
+        private readonly List<PendingDebts> _pendingDebts = new();
 
         public Action<IToken, ISpace>? OnPlayerMoved;
         public Action<IPlayer>? OnTurnChanged;
@@ -247,6 +253,7 @@ namespace Monopoly.Core
         /// </summary>
         private static (int row, int column) GetGridPosition(int index)
         {
+            // GridSize = 11, Monopoly size
             int last = Models.Board.GridSize - 1;
 
             if (index <= last)
@@ -296,7 +303,7 @@ namespace Monopoly.Core
         /// </summary>
         public void DrawCard(IPlayer player, CardType cardType)
         {
-            if (player == null || player.IsBankrupt || _isGameOver) return;
+            if (player == null || player.IsBankrupt || Status != GameStatus.InProgress) return;
 
             ICardDeck deck = cardType == CardType.Chance ? _chanceDeck : _communityChestDeck;
 
@@ -518,7 +525,8 @@ namespace Monopoly.Core
                 throw new InvalidOperationException("Initialize the players before starting the game.");
             }
 
-            _isGameOver = false;
+            Status = GameStatus.InProgress;
+
             _doubleCount = 0;
             _currentPlayerIndex = 0;
             _hasRolled = false;
@@ -529,7 +537,9 @@ namespace Monopoly.Core
         /// <summary>Ends the game. Nothing more can be played.</summary>
         public void EndGame()
         {
-            _isGameOver = true;
+            // _isGameOver = true;
+
+            Status = GameStatus.GameOver;
         }
 
         /// <summary>Ends the current player's turn and passes the turn on.</summary>
@@ -553,7 +563,7 @@ namespace Monopoly.Core
         /// </summary>
         public bool NextTurn()
         {
-            if (_isGameOver) return false;
+            if (Status != GameStatus.InProgress) return false;
 
             for (int step = 1; step <= Players.Count; step++)
             {
@@ -651,7 +661,7 @@ namespace Monopoly.Core
 
 
             // if there are someone who hasnt paid his Debt, the game cant continue
-            if (_isGameOver || HasPendingDebt()) return;
+            if (Status != GameStatus.InProgress || HasPendingDebt()) return;
 
             IPlayer player = GetCurrentPlayer();
             IToken token = _playerTokens[player];
@@ -725,7 +735,7 @@ namespace Monopoly.Core
         /// </summary>
         public bool CanRollAgain()
         {
-            if (_isGameOver || HasPendingDebt()) return false;
+            if (Status != GameStatus.InProgress || HasPendingDebt()) return false;
 
             IPlayer player = GetCurrentPlayer();
 
@@ -755,7 +765,7 @@ namespace Monopoly.Core
 
         public bool CanRoll()
         {
-            if (_isGameOver || HasPendingDebt()) return false;
+            if (Status != GameStatus.InProgress || HasPendingDebt()) return false;
             if (HasUnresolvedPropertyUnderfoot())
             {
                 return false;
@@ -778,7 +788,7 @@ namespace Monopoly.Core
 
         public bool CanEndTurn()
         {
-            if (_isGameOver || HasPendingDebt()) return false;
+            if (Status != GameStatus.InProgress || HasPendingDebt()) return false;
 
             if (HasUnresolvedPropertyUnderfoot())
             {
@@ -998,7 +1008,7 @@ namespace Monopoly.Core
         public bool BuyProperty(IPlayer player, IProperty property)
         {
             if (player == null || property == null) return false;
-            if (player.IsBankrupt || _isGameOver) return false;
+            if (player.IsBankrupt || Status != GameStatus.InProgress) return false;
 
             // 1. Must be unowned (Bank-owned)
             if (GetPropertyOwner(property) != null)
@@ -1187,7 +1197,7 @@ namespace Monopoly.Core
         public bool HandleMortgage(IPlayer player, IProperty property)
         {
             if (player == null || property == null) return false;
-            if (player.IsBankrupt || _isGameOver) return false;
+            if (player.IsBankrupt || Status != GameStatus.InProgress) return false;
 
             // 1. Player must own the property
             if (GetPropertyOwner(property) != player)
@@ -1233,7 +1243,7 @@ namespace Monopoly.Core
         public bool HandleMortgageRedemption(IPlayer player, IProperty property)
         {
             if (player == null || property == null) return false;
-            if (player.IsBankrupt || _isGameOver) return false;
+            if (player.IsBankrupt || Status != GameStatus.InProgress) return false;
 
             // 1. Player must own the property
             if (GetPropertyOwner(property) != player)
@@ -1282,7 +1292,7 @@ namespace Monopoly.Core
         public bool BuyHouse(IPlayer player, IProperty property)
         {
             if (player == null || property == null) return false;
-            if (player.IsBankrupt || _isGameOver) return false;
+            if (player.IsBankrupt || Status != GameStatus.InProgress) return false;
 
             // 1. Must be a street property with a valid color group and house cost
             if (property.PropertyType != PropertyType.Street ||
@@ -1353,7 +1363,7 @@ namespace Monopoly.Core
         public bool SellHouse(IPlayer player, IProperty property)
         {
             if (player == null || property == null) return false;
-            if (player.IsBankrupt || _isGameOver) return false;
+            if (player.IsBankrupt || Status != GameStatus.InProgress) return false;
 
             // 1. Must be a street property with a valid color group and house cost
             if (property.PropertyType != PropertyType.Street ||
@@ -1409,7 +1419,7 @@ namespace Monopoly.Core
         public bool BuyHotel(IPlayer player, IProperty property)
         {
             if (player == null || property == null) return false;
-            if (player.IsBankrupt || _isGameOver) return false;
+            if (player.IsBankrupt || Status != GameStatus.InProgress) return false;
 
             // 1. Must be a street property with valid color group and house cost
             if (property.PropertyType != PropertyType.Street ||
@@ -1491,7 +1501,7 @@ namespace Monopoly.Core
         public bool SellHotel(IPlayer player, IProperty property)
         {
             if (player == null || property == null) return false;
-            if (player.IsBankrupt || _isGameOver) return false;
+            if (player.IsBankrupt || Status != GameStatus.InProgress) return false;
 
             // 1. Must be a street property with a valid house cost
             if (property.PropertyType != PropertyType.Street || !property.HouseCost.HasValue)
@@ -1609,7 +1619,7 @@ namespace Monopoly.Core
 
             // Determine creditor from our pending debt (null = Bank)
             var firstDebt = _pendingDebts.FirstOrDefault(d => d.Debtor == player);
-            IPlayer? creditor = firstDebt.Creditor;
+            IPlayer? creditor = firstDebt?.Creditor;
 
             // 1. FORCED LIQUIDATION OF ALL BUILDINGS (PLR-31, PLR-34):
             // All houses and hotels on all streets owned by player are sold to the Bank at half price.
@@ -1726,13 +1736,13 @@ namespace Monopoly.Core
         /// </summary>
         public bool CheckGameOver()
         {
-            if (_isGameOver) return true;
+            if (Status == GameStatus.GameOver) return true;
 
             int activePlayers = Players.Count(p => !p.IsBankrupt);
 
             if (activePlayers <= 1)
             {
-                _isGameOver = true;
+                Status = GameStatus.GameOver;
                 return true;
             }
 
@@ -1762,7 +1772,7 @@ namespace Monopoly.Core
         private void RecordDebt(IPlayer debtor, int amount, IPlayer? creditor)
         {
 
-            _pendingDebts.Add((debtor, creditor, amount));
+            _pendingDebts.Add(new PendingDebts(debtor, creditor, amount));
         }
 
 
@@ -1803,7 +1813,11 @@ namespace Monopoly.Core
         public bool SellProperty(IPlayer player, IProperty property)
         {
             if (player == null || property == null) return false;
-            if (player.IsBankrupt || _isGameOver) return false;
+
+            if (player.IsBankrupt)
+            {
+                return false;
+            }
 
             // 1. Player must be the owner
             if (GetPropertyOwner(property) != player)
@@ -1851,7 +1865,7 @@ namespace Monopoly.Core
             // 1. Basic Validation
             if (buyer == null || seller == null || properties == null) return false;
             if (buyer == seller) return false; // Cannot trade with yourself
-            if (buyer.IsBankrupt || seller.IsBankrupt || _isGameOver) return false;
+            if (buyer.IsBankrupt || seller.IsBankrupt) return false;
             if (properties.Count == 0 || offer < 0) return false;
 
             // 2. Buyer must be able to afford the cash offer
@@ -1912,10 +1926,26 @@ namespace Monopoly.Core
         public bool ProposeTrade(IPlayer buyer, IPlayer seller, List<IProperty> properties, int offer)
         {
             // 1. Validate that the offer is valid
-            if (buyer == null || seller == null || properties == null) return false;
-            if (buyer == seller) return false;
-            if (buyer.IsBankrupt || seller.IsBankrupt || _isGameOver) return false;
-            if (properties.Count == 0 || offer < 0) return false;
+            if (buyer == null || seller == null || properties == null)
+            {
+                return false;
+            }
+
+            if (buyer == seller)
+            {
+                return false;
+            }
+
+            if (buyer.IsBankrupt || seller.IsBankrupt)
+            {
+                return false;
+            }
+
+            if (properties.Count == 0 || offer < 0)
+            {
+                return false;
+            }
+
 
             // 2. Buyer must actually have the cash they are offering
             if (buyer.Money < offer) return false;
@@ -2005,7 +2035,7 @@ namespace Monopoly.Core
             // 1. Basic Validation
             if (buyer == null || seller == null) return false;
             if (buyer == seller) return false; // Cannot trade with yourself
-            if (buyer.IsBankrupt || seller.IsBankrupt || _isGameOver) return false;
+            if (buyer.IsBankrupt || seller.IsBankrupt) return false;
             if (offer < 0) return false;
 
             // 2. Seller must actually possess a Get Out of Jail Free card (CRD-06)
@@ -2046,7 +2076,7 @@ namespace Monopoly.Core
             // 1. Validation
             if (buyer == null || seller == null) return false;
             if (buyer == seller) return false;
-            if (buyer.IsBankrupt || seller.IsBankrupt || _isGameOver) return false;
+            if (buyer.IsBankrupt || seller.IsBankrupt) return false;
             if (offer < 0) return false;
 
             // 2. Seller must actually have a card
@@ -2127,7 +2157,7 @@ namespace Monopoly.Core
         /// </summary>
         public bool StartAuction(IProperty property)
         {
-            if (property == null || GetPropertyOwner(property) != null || _isGameOver)
+            if (property == null || GetPropertyOwner(property) != null)
             {
                 return false;
             }
@@ -2152,13 +2182,22 @@ namespace Monopoly.Core
         /// </summary>
         public bool PlaceBid(IPlayer player, int amount)
         {
-            if (_auctionProperty == null) return false;
-            if (player == null || player.IsBankrupt || _isGameOver) return false; // to make sure it is your turn
+            if (_auctionProperty == null)
+            {
+                return false;
+            }
+            if (player == null || player.IsBankrupt)
+            {
+                return false; // to make sure it is your turn
+            }
 
             if (player != CurrentAuctionBidder) return false;
 
             // Cannot bid against yourself!
-            if (player == _highestBidder) return false;
+            if (player == _highestBidder)
+            {
+                return false;
+            }
 
             // Bid must be higher than current top bid, and player must actually have the cash
             if (amount <= _highestBid || player.Money < amount)
