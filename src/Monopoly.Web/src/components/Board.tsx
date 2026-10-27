@@ -51,154 +51,85 @@ export const Board: React.FC<BoardProps> = ({
   onSpaceClick,
   children,
 }) => {
+
   // 1. Animated positions state for each player
   const [displayPositions, setDisplayPositions] = useState<
     Record<number, number>
   >(() => {
+
     const initial: Record<number, number> = {};
+
     gameState.players.forEach((p) => {
       initial[p.id] = p.position;
     });
+
     return initial;
+
   });
+
   const [hoppingPlayerId, setHoppingPlayerId] = useState<number | null>(null);
   const prevPositionsRef = useRef<Record<number, number>>({});
 
-  // 2. Animate token square-by-square when position changes
-
-  // useEffect(() => {
-  //   const timeouts: any[] = [];
-  //   const intervals: any[] = [];
-
-  //   for (const p of gameState.players) {
-  //     const prevPos = prevPositionsRef.current[p.id];
-  //     const targetPos = p.position;
-
-  //     // Initial mount: record position
-  //     if (prevPos === undefined) {
-  //       prevPositionsRef.current[p.id] = targetPos;
-  //       setDisplayPositions((prev) => ({ ...prev, [p.id]: targetPos }));
-  //       continue;
-  //     }
-
-  //     // If position changed, animate the steps!
-  //     if (prevPos !== targetPos) {
-  //       prevPositionsRef.current[p.id] = targetPos;
-
-  //       // Total squares to advance (clockwise)
-  //       const steps = (targetPos - prevPos + 40) % 40;
-
-  //       // If sent to jail (space 30 -> 10) or large teleport (> 12 spaces), jump directly
-  //       if (steps > 12 || (p.isInJail && targetPos === 10)) {
-  //         setDisplayPositions((prev) => ({ ...prev, [p.id]: targetPos }));
-  //         continue;
-  //       }
-
-  //       // Wait 700ms for dice rolling & landing animation to finish first!
-  //       const startDelay = setTimeout(() => {
-  //         setHoppingPlayerId(p.id);
-  //         let currentStep = 0;
-  //         const stepDelay = Math.max(
-  //           120,
-  //           Math.min(180, Math.floor(1100 / steps)),
-  //         );
-
-  //         const timer = setInterval(() => {
-  //           currentStep++;
-  //           const nextSpace = (prevPos + currentStep) % 40;
-  //           setDisplayPositions((prev) => ({
-  //             ...prev,
-  //             [p.id]: nextSpace,
-  //           }));
-
-  //           if (currentStep >= steps) {
-  //             clearInterval(timer);
-  //             setHoppingPlayerId(null);
-  //           }
-  //         }, stepDelay);
-
-  //         intervals.push(timer);
-  //       }, 700);
-
-  //       timeouts.push(startDelay);
-  //     }
-  //   }
-
-  //   // Cleanup when component unmounts or effect re-runs
-  //   return () => {
-  //     timeouts.forEach(clearTimeout);
-  //     intervals.forEach(clearInterval);
-  //     setHoppingPlayerId(null);
-  //   };
-  // }, [gameState.players]);
-
+  
   useEffect(() => {
     gameState.players.forEach((p) => {
       const prevPos = prevPositionsRef.current[p.id];
       const targetPos = p.position;
+
       // Initial mount: record position
       if (prevPos === undefined) {
+
         prevPositionsRef.current[p.id] = targetPos;
         setDisplayPositions((prev) => ({ ...prev, [p.id]: targetPos }));
         return;
+
       }
+
       // If position changed, animate the steps!
       if (prevPos !== targetPos) {
+
         prevPositionsRef.current[p.id] = targetPos;
+
         // Total squares to advance (clockwise)
         const steps = (targetPos - prevPos + 40) % 40;
+
         // If sent to jail (space 30 -> 10) or large teleport (> 12 spaces), jump directly
         if (steps > 12 || (p.isInJail && targetPos === 10)) {
+
           setDisplayPositions((prev) => ({ ...prev, [p.id]: targetPos }));
           return;
+
         }
 
-        // let timer: ReturnType<typeof setInterval> | null = null;
-        // const startDelayTimeout = setTimeout(() => {
-        //   setHoppingPlayerId(p.id);
-        //   let currentStep = 0;
-        //   const stepDelay = Math.max(
-        //     120,
-        //     Math.min(180, Math.floor(1100 / steps)),
-        //   );
-        //   timer = setInterval(() => {
-        //     currentStep++;
-        //     const nextSpace = (prevPos + currentStep) % 40;
-        //     setDisplayPositions((prev) => ({
-        //       ...prev,
-        //       [p.id]: nextSpace,
-        //     }));
-        //     if (currentStep >= steps) {
-        //       if (timer) clearInterval(timer);
-        //       setHoppingPlayerId(null);
-        //     }
-        //   }, stepDelay);
-        // }, 700);
-        // return () => {
-        //   clearTimeout(startDelayTimeout);
-        //   if (timer) clearInterval(timer);
-        //   setHoppingPlayerId(null);
-        // };
+        
 
         // Stepping animation
         setHoppingPlayerId(p.id);
         let currentStep = 0;
+
         const stepDelay = Math.max(
+          // no faster than 120
           120,
+          // no slower than 180
           Math.min(180, Math.floor(1100 / steps)),
         );
+
+        // fire every stepDelay
         const timer = setInterval(() => {
           currentStep++;
+
           const nextSpace = (prevPos + currentStep) % 40;
           setDisplayPositions((prev) => ({
             ...prev,
             [p.id]: nextSpace,
           }));
+
           if (currentStep >= steps) {
             clearInterval(timer);
             setHoppingPlayerId(null);
           }
         }, stepDelay);
+
         return () => {
           clearInterval(timer);
           setHoppingPlayerId(null);
@@ -212,7 +143,10 @@ export const Board: React.FC<BoardProps> = ({
       <div className="monopoly-board">
         {gameState.spaces.map((space) => {
           const gridStyle = getSpaceGridStyle(space.index);
+
+          // corner
           const isCorner = [0, 10, 20, 30].includes(space.index);
+
           const colorHex = space.colorGroup
             ? COLOR_MAP[space.colorGroup]
             : undefined;
@@ -221,7 +155,9 @@ export const Board: React.FC<BoardProps> = ({
           const owner = space.ownerName
             ? gameState.players.find((p) => p.name === space.ownerName)
             : null;
+
           const ownerColor = owner ? TOKEN_COLOR_MAP[owner.tokenColor] : null;
+
           // Apply owner tint & border if owned (non-corner)
           const spaceStyle: React.CSSProperties = {
             ...gridStyle,
@@ -236,12 +172,14 @@ export const Board: React.FC<BoardProps> = ({
 
           // Corner classes
           let cornerClass = "";
+
           if (space.index === 0) cornerClass = "corner corner-go";
           else if (space.index === 10) cornerClass = "corner corner-jail";
           else if (space.index === 20) cornerClass = "corner corner-parking";
           else if (space.index === 30) cornerClass = "corner corner-gotojail";
 
-          // 👈 Find all players currently standing on this square (using animated position)
+          // came from initial
+          // Find all players currently standing on this square (using animated position)
           const playersOnSpace = gameState.players.filter(
             (p) =>
               !p.isBankrupt &&
@@ -306,7 +244,7 @@ export const Board: React.FC<BoardProps> = ({
                 <div className="mortgaged-badge">MORTGAGED</div>
               )}
 
-              {/* 👈 3. High-Visibility Animated Tokens */}
+              {/* 3. High-Visibility Animated Tokens */}
               {playersOnSpace.length > 0 && (
                 <div className="space-tokens">
                   {playersOnSpace.map((p) => {
@@ -331,28 +269,6 @@ export const Board: React.FC<BoardProps> = ({
             </div>
           );
         })}
-
-        {/* Tokens currently on this square
-              {space.tokenColors.length > 0 && (
-                <div className="space-tokens">
-                  {space.tokenColors.map((colorName, idx) => {
-                    const bg = TOKEN_COLOR_MAP[colorName] || "#64748b";
-                    return (
-                      <div
-                        key={idx}
-                        className="token-pin"
-                        style={{ backgroundColor: bg }}
-                        title={`Player with ${colorName} token`}
-                      >
-                        {colorName.charAt(0)}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })} */}
 
         {/* Center Area containing Turn Controls, Dice, and Child dialogs */}
         <div className="board-center">{children}</div>

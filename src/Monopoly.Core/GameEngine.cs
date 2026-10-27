@@ -15,7 +15,7 @@ namespace Monopoly.Core
         public IBoard Board { get; }
         public IDice Dice { get; }
         Random _random = new Random();
-        public List<IPlayer> Players { get; }
+        public List<IPlayer> Players { get; } = new();
 
         private readonly Dictionary<IProperty, IPlayer> _propertyOwners = new Dictionary<IProperty, IPlayer>();
 
@@ -41,7 +41,7 @@ namespace Monopoly.Core
         // Counter how many times player throwing a double
         private int _doubleCount;
         // pascal
-        
+
         private readonly ICardDeck _chanceDeck = new CardDeck();
         private readonly ICardDeck _communityChestDeck = new CardDeck();
         // private bool _isGameOver;
@@ -49,9 +49,11 @@ namespace Monopoly.Core
         public GameStatus Status { get; private set; } = GameStatus.NotStarted;
 
         /// FLAG, Bug fixing, (API can call RollDice again and again)
+        /// RollandMove
         private bool _hasRolled;
 
         /// FLAG, Bug fixing, (Bug : Game cant continue when everyone decline buying property)
+        /// BuyProperty, DeclineProperty -> StartAuction
         private bool _propertyDecisionResolved = true;
 
         // ========================================================================================
@@ -85,7 +87,9 @@ namespace Monopoly.Core
         private IPlayer? _tradeBuyer;
         private IPlayer? _tradeSeller;
         private List<IProperty>? _tradeProperties;
-        private int _tradeOffer;
+
+        
+        private int _tradeOffer; // price for transaction
 
         // Event to notify the client/UI that an offer was made
         public Action<IPlayer, IPlayer, List<IProperty>, int>? OnTradeOffered; // buyer, seller, properties, offer
@@ -109,11 +113,13 @@ namespace Monopoly.Core
         /// --------------------------------------- AUCTION -----------------------------------------
         /// =========================================================================================
 
-        // Current auction state (zero new classes)
-        private IProperty? _auctionProperty;
-        private IPlayer? _highestBidder;
-        private int _highestBid;
-        // Events for the React client / SignalR
+        // Current auction state
+        private ActiveAuction? _activeAuction;
+        // private IProperty? _auctionProperty;
+        // private IPlayer? _highestBidder;
+        // private int _highestBid;
+        
+        // Events for the React client
         public Action<IProperty>? OnAuctionStarted;
         public Action<IPlayer, int>? OnBidPlaced; // bidder, amount
         public Action<IProperty, IPlayer?, int>? OnAuctionEnded; // property, winner (or null), winningBid
@@ -124,19 +130,14 @@ namespace Monopoly.Core
         private List<IPlayer> _auctionBidders = new();
         private int _auctionTurnIndex;
 
-        /// =========================================================================================
-        /// GETTER, SETTER.
-        /// =========================================================================================
-
-
         public IPlayer? CurrentAuctionBidder =>
             _auctionBidders.Count > 0 ? _auctionBidders[_auctionTurnIndex % _auctionBidders.Count] : null;
 
-        public GameEngine(IBoard board, IDice dice, List<IPlayer> players)
+        public GameEngine(IBoard board, IDice dice)
         {
             Board = board;
             Dice = dice;
-            Players = players;
+
         }
 
         /// <summary>
@@ -173,6 +174,7 @@ namespace Monopoly.Core
         {
             Board.Path.Clear();
 
+            // square = 40
             for (int index = 0; index < BoardData.SquareCount; index++)
             {
                 (int row, int column) = GetGridPosition(index);
@@ -193,14 +195,14 @@ namespace Monopoly.Core
             }
 
             // ADD NEW VALIDATION
-            if (players == null || tokens == null) return false;
+            // if (players == null || tokens == null) return false;
             if (players.Count < MinPlayers || players.Count > MaxPlayers) return false;
-            if (players.Count != tokens.Count) return false;
+            // if (players.Count != tokens.Count) return false;
 
             ISpace go = Board.Path[0];
 
             // 1. Copy to local list first so clearing doesn't wipe the source
-            var playerList = players.ToList();
+            // var playerList = players.ToList();
 
             Players.Clear();
             _playerTokens.Clear();
@@ -214,9 +216,9 @@ namespace Monopoly.Core
                 space.Tokens.Clear();
             }
 
-            for (int i = 0; i < playerList.Count; i++)
+            for (int i = 0; i < players.Count; i++)
             {
-                IPlayer player = playerList[i];
+                IPlayer player = players[i];
                 IToken token = tokens[i];
 
                 // token.CurrentPosition = go;
@@ -291,7 +293,10 @@ namespace Monopoly.Core
             for (int i = cardList.Count - 1; i > 0; i--)
             {
                 int j = _random.Next(i + 1);
-                (cardList[i], cardList[j]) = (cardList[j], cardList[i]);
+                // (cardList[i], cardList[j]) = (cardList[j], cardList[i]);
+                ICard temp = cardList[i];
+                cardList[i] = cardList[j];
+                cardList[j] = temp;
             }
 
             deck.Cards = new Queue<ICard>(cardList);
@@ -311,6 +316,8 @@ namespace Monopoly.Core
 
             // 1. Draw top card (CRD-02)
             ICard card = deck.Cards.Dequeue();
+
+            // display
             LastDrawnCard = card;
 
             // 2. Notify observers / UI to display the card popup
@@ -351,7 +358,7 @@ namespace Monopoly.Core
                         int targetIndex = card.Value.Value;
 
                         // Ex : currentIndex - 2
-                        // steps = (24 - 2 + 40) % 40
+                        // steps = (24 - 2 + 40) % 40 = 22
                         int steps = (targetIndex - currentIndex + Board.Path.Count) % Board.Path.Count;
                         if (steps == 0) steps = Board.Path.Count; // e.g. Advance to GO when already on GO
 
@@ -364,7 +371,10 @@ namespace Monopoly.Core
                 case CardEffect.MoveToNearestRailroad:
                     // Railroads are at spaces 5, 15, 25, 35
                     int[] railroads = [5, 15, 25, 35];
+
+                    // look for railroad infront, if none, then take the first raildroad
                     int nextRailroad = railroads.FirstOrDefault(r => r > currentIndex, railroads[0]);
+                    
                     int rrSteps = (nextRailroad - currentIndex + Board.Path.Count) % Board.Path.Count;
                     if (rrSteps == 0) rrSteps = Board.Path.Count;
 
@@ -392,10 +402,11 @@ namespace Monopoly.Core
 
                 case CardEffect.ReceiveMoney:
                     // Bank pays dividend, loan maturity, tax refund, etc.
-                    if (card.Value.HasValue)
-                    {
-                        ReceiveMoney(player, card.Value.Value);
-                    }
+                    // if (card.Value.HasValue)
+                    // {
+                    //     ReceiveMoney(player, card.Value.Value);
+                    // }
+                    ReceiveMoney(player, card.Value!.Value);
                     break;
 
                 case CardEffect.PayMoney:
@@ -745,10 +756,7 @@ namespace Monopoly.Core
                 return false;
             }
 
-            // Must be doubles (and not dice default 0 before rolling)
-            // bool isDouble = Dice.Side1 == Dice.Side2 && Dice.Side1 > 0;
-
-            // return isDouble && _doubleCount > 0 && _doubleCount < 3;
+         
             // Must be double, but strictly less than 3 consecutive doubles
             return _doubleCount > 0 && _doubleCount < 3;
         }
@@ -786,6 +794,7 @@ namespace Monopoly.Core
             return !_hasRolled || CanRollAgain();
         }
 
+        // Control the End Turn button. clickable or not 
         public bool CanEndTurn()
         {
             if (Status != GameStatus.InProgress || HasPendingDebt()) return false;
@@ -1090,7 +1099,8 @@ namespace Monopoly.Core
 
 
                         int[] railroadRents = [25, 50, 100, 200];
-                        rent = railroadRents[Math.Clamp(railroadsOwned - 1, 0, 3)];
+                        rent = railroadRents[railroadsOwned-1];
+                        // rent = railroadRents[Math.Clamp(railroadsOwned - 1, 0, 3)];
 
                         if (fromCard)
                         {
@@ -2135,10 +2145,10 @@ namespace Monopoly.Core
         /// --------------------------------------- AUCTION -----------------------------------------
         /// =========================================================================================
 
-        public IProperty? AuctionProperty => _auctionProperty;
-        public IPlayer? HighestBidder => _highestBidder;
-        public int HighestBid => _highestBid;
-        public bool HasActiveAuction => _auctionProperty != null;
+        public IProperty? AuctionProperty => _activeAuction?.Property;
+        public IPlayer? HighestBidder => _activeAuction?.HighestBidder;
+        public int HighestBid => _activeAuction!.HighestBid;
+        public bool HasActiveAuction => _activeAuction != null;
 
         ///  <summary>
         /// Called when a player lands on an unowned property and declines to buy it at the printed price (PRP-12).
@@ -2162,9 +2172,10 @@ namespace Monopoly.Core
                 return false;
             }
 
-            _auctionProperty = property;
-            _highestBidder = null;
-            _highestBid = 0;
+            _activeAuction = new ActiveAuction(property, null, 0);
+            // _auctionProperty = property;
+            // _highestBidder = null;
+            // _highestBid = 0;
 
             // Initialize all active (non-bankrupt) players as bidders
             _auctionBidders = Players.Where(p => !p.IsBankrupt).ToList();
@@ -2182,7 +2193,7 @@ namespace Monopoly.Core
         /// </summary>
         public bool PlaceBid(IPlayer player, int amount)
         {
-            if (_auctionProperty == null)
+            if (_activeAuction!.Property == null)
             {
                 return false;
             }
@@ -2194,33 +2205,30 @@ namespace Monopoly.Core
             if (player != CurrentAuctionBidder) return false;
 
             // Cannot bid against yourself!
-            if (player == _highestBidder)
+            if (player == _activeAuction.HighestBidder)
             {
                 return false;
             }
 
             // Bid must be higher than current top bid, and player must actually have the cash
-            if (amount <= _highestBid || player.Money < amount)
+            if (amount <= _activeAuction.HighestBid || player.Money < amount)
             {
                 return false;
             }
 
-            _highestBidder = player;
-            _highestBid = amount;
+            // _highestBidder = player;
+            // _highestBid = amount;
+
+            _activeAuction = new ActiveAuction(_activeAuction!.Property, player, amount);
 
             OnBidPlaced?.Invoke(player, amount);
 
             if (_auctionBidders.Count <= 1)
             {
-                HandleAuction(_auctionProperty);
+                HandleAuction(_activeAuction.Property);
                 return true;
             }
 
-            // Advance bidding turn to the next remaining bidder
-            // if (_auctionBidders.Count > 1)
-            // {
-            //     _auctionTurnIndex = (_auctionTurnIndex + 1) % _auctionBidders.Count;
-            // }
 
             _auctionTurnIndex = (_auctionTurnIndex + 1) % _auctionBidders.Count;
             return true;
@@ -2231,7 +2239,7 @@ namespace Monopoly.Core
         /// </summary>
         public bool PassBid(IPlayer player)
         {
-            if (_auctionProperty == null || player != CurrentAuctionBidder) return false;
+            if (_activeAuction == null || player != CurrentAuctionBidder) return false;
 
             // Remove this player from the auction
             _auctionBidders.Remove(player);
@@ -2239,14 +2247,14 @@ namespace Monopoly.Core
             // Case 1: Nobody left at all ➔ Auction ends, stays with Bank
             if (_auctionBidders.Count == 0)
             {
-                HandleAuction(_auctionProperty);
+                HandleAuction(_activeAuction.Property);
                 return true;
             }
 
             // Case 2: Only 1 bidder remains AND someone placed a bid ➔ Remaining player wins!
-            if (_auctionBidders.Count == 1 && _highestBidder != null)
+            if (_auctionBidders.Count == 1 && _activeAuction.HighestBidder != null)
             {
-                HandleAuction(_auctionProperty);
+                HandleAuction(_activeAuction.Property);
                 return true;
             }
 
@@ -2262,10 +2270,10 @@ namespace Monopoly.Core
         /// </summary>
         public IPlayer? HandleAuction(IProperty property)
         {
-            if (property == null || _auctionProperty != property) return null;
+            if (property == null || _activeAuction?.Property != property) return null;
 
-            IPlayer? winner = _highestBidder;
-            int winningBid = _highestBid;
+            IPlayer? winner = _activeAuction.HighestBidder;
+            int winningBid = _activeAuction.HighestBid;
 
             if (winner != null && winningBid > 0)
             {
@@ -2280,9 +2288,10 @@ namespace Monopoly.Core
             OnAuctionEnded?.Invoke(property, winner, winningBid);
 
             // 4. Clear auction state
-            _auctionProperty = null;
-            _highestBidder = null;
-            _highestBid = 0;
+            _activeAuction = null;
+            // _auctionProperty = null;
+            // _highestBidder = null;
+            // _highestBid = 0;
 
             return winner;
         }

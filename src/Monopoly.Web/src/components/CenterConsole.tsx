@@ -36,14 +36,16 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
   loading,
   myPlayerId,
 }) => {
+
   const currentPlayer = gameState.players.find(
     (p) => p.id === gameState.currentPlayerId,
   );
+
   const currentSpace = gameState.spaces.find(
     (s) => s.index === currentPlayer?.position,
   );
 
-  //
+  // For Button checking rendering. Buy Property 
   const isUnownedProperty = Boolean(
     currentSpace &&
     ["Street", "Railroad", "Utility"].includes(currentSpace.type) &&
@@ -60,54 +62,84 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
 
   // --- DICE ROLL ANIMATION STATE ---
   const [isRolling, setIsRolling] = useState(false);
+
+  // display pips/dots
   const [displaySides, setDisplaySides] = useState({
     side1: gameState.dice.side1,
     side2: gameState.dice.side2,
   });
+
+  // gameState send datas
+  // only trigger animation when dice is different number (dice rolled) 
   const prevDiceRef = useRef({
     side1: gameState.dice.side1,
     side2: gameState.dice.side2,
   });
+  
   // Tumble and scramble pips for ~600ms
+  // target : came from server
   const triggerRoll = (target1: number, target2: number) => {
+
     setIsRolling(true);
+
     let counter = 0;
+
     const interval = setInterval(() => {
+
       counter++;
+
       setDisplaySides({
+        // random 1-6
         side1: Math.floor(Math.random() * 6) + 1,
         side2: Math.floor(Math.random() * 6) + 1,
       });
+
       if (counter >= 10) {
+
         clearInterval(interval);
         setDisplaySides({ side1: target1, side2: target2 });
         setIsRolling(false);
+
       }
     }, 60);
   };
 
-  // Watch for dice updates from server (works for BOTH local roller and SignalR opponent)
+  // Watch for dice updates from server 
   useEffect(() => {
+
     const prev = prevDiceRef.current;
     const curr = gameState.dice;
     if (
+
       curr.side1 > 0 &&
       (curr.side1 !== prev.side1 || curr.side2 !== prev.side2)
+
     ) {
+
       prevDiceRef.current = { side1: curr.side1, side2: curr.side2 };
       triggerRoll(curr.side1, curr.side2);
+
     } else if (curr.side1 === 0) {
+
       setDisplaySides({ side1: 0, side2: 0 });
       prevDiceRef.current = { side1: 0, side2: 0 };
+
     }
   }, [gameState.dice.side1, gameState.dice.side2]);
+
+
+
   const handleRollClick = () => {
     setIsRolling(true);
     onRoll();
   };
+
   // Render authentic 3x3 dice dot patterns
   const renderDicePips = (val: number) => {
+
+    // dice not rolled
     if (val <= 0) return <span style={{ fontSize: "2rem" }}>🎲</span>;
+
     const pipPositions: Record<number, number[]> = {
       1: [5],
       2: [1, 9],
@@ -116,13 +148,21 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
       5: [1, 3, 5, 7, 9],
       6: [1, 3, 4, 6, 7, 9],
     };
+
+    // activePips, the number we are getting
+    // map to the dot 
+    // default display 1 / [5]
     const activePips = pipPositions[val] || [5];
+
     return (
+
       <div className="dice-pip-grid">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((pos) => (
+
           <div key={pos} className="pip-slot">
             {activePips.includes(pos) && <span className="pip-dot" />}
           </div>
+
         ))}
       </div>
     );
@@ -153,12 +193,7 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
                 currentPlayer?.tokenColor.toLowerCase() || "#f59e0b",
             }}
           />
-          {/* <span>
-            {gameState.isGameOver
-              ? `Game Over! Winner: ${gameState.winnerName}`
-              : `${gameState.currentPlayerName}'s Turn`}
-          </span> */}
-
+         
           {/* MULTIPLAYER */}
           <span>
             {gameState.isGameOver
@@ -192,27 +227,15 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
             </span>
           </div>
         )}
+
         {gameState.dice.isDouble && !isRolling && (
           <div className="dice-double-alert text-center">
             🎉 Rolled Doubles! (Roll Again)
           </div>
         )}
+
       </div>
-      {/* <div>
-        <div className="dice-container">
-          <div className="dice-box">
-            {gameState.dice.side1 > 0 ? gameState.dice.side1 : "🎲"}
-          </div>
-          <div className="dice-box">
-            {gameState.dice.side2 > 0 ? gameState.dice.side2 : "🎲"}
-          </div>
-        </div>
-        {gameState.dice.isDouble && (
-          <div className="dice-double-alert text-center">
-            🎉 Rolled Doubles! (Roll Again)
-          </div>
-        )}
-      </div> */}
+      
 
       {/* Debt Alert Banner */}
       {gameState.hasPendingDebt && (
@@ -234,10 +257,7 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
           <strong style={{ color: "#f8fafc" }}>{mySpace!.name}</strong>
           {mySpace?.price && !mySpace.ownerName && ` (Price : $${mySpace.price})`}
           {mySpace?.ownerName && (mySpace.ownerName === myPlayer?.name) ? " (Your Property) " : ` (Owner : ${mySpace?.ownerName ?? "- "})`}
-          {/* {currentSpace.price &&
-            !currentSpace.ownerName &&
-            ` (Price: $${currentSpace.price})`}
-          {currentSpace.ownerName && ` (Owner: ${currentSpace.ownerName})`} */}
+         
         </div>
       )}
 
@@ -266,48 +286,7 @@ export const CenterConsole: React.FC<CenterConsoleProps> = ({
             )}
           </div>
         )}
-        {/* {currentPlayer?.isInJail && (
-          <div className="action-row">
-            <button
-              className="btn btn-warning"
-              onClick={onPayJailFine}
-              disabled={loading || currentPlayer.money < 50}
-            >
-              <DollarSign size={16} /> Pay $50 Jail Fine
-            </button>
-            {currentPlayer.jailFreeCards > 0 && (
-              <button
-                className="btn btn-secondary"
-                onClick={onUseJailCard}
-                disabled={loading}
-              >
-                <ShieldAlert size={16} /> Use Jail-Free Card (
-                {currentPlayer.jailFreeCards})
-              </button>
-            )}
-          </div>
-        )} */}
-
-        {/* Unowned Property Buy / Auction Controls */}
-        {/* {canBuyCurrentSpace && (
-          <div className="action-row">
-            <button
-              className="btn btn-success"
-              onClick={onBuyProperty}
-              disabled={loading}
-            >
-              <Building2 size={16} /> Buy Property (${currentSpace?.price})
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={onAuctionProperty}
-              disabled={loading}
-            >
-              Auction
-            </button>
-          </div>
-        )} */}
-
+        
         {/* Unowned Property Buy / Auction Controls */}
         {/* Buy Property Button */}
         {isUnownedProperty && (

@@ -33,6 +33,16 @@ export default function App() {
     null,
   );
 
+  // notif
+  const [notification, setNotification] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
   // ====================================
   // For Remote MultiPlayer
   const [myPlayerId, setMyPlayerId] = useState<number | null>(() => {
@@ -55,22 +65,30 @@ export default function App() {
 
   // Connect to SignalR and load initial state
   useEffect(() => {
+    //
     let isMounted = true;
 
     async function init() {
       try {
-        await startSignalR((newState) => {
-          console.log("[App] New state from SignalR:", newState);
-          setGameState(newState);
+        await startSignalR(
+          (newState) => {
+            console.log("[App] New state from SignalR:", newState);
+            setGameState(newState);
 
-          // (MULTIPLAYER)
-          setShowStartModal(false);
-          setSelectedSpace((prev) =>
-            prev
-              ? newState.spaces.find((s) => s.index === prev.index) || null
-              : null,
-          );
-        });
+            // (MULTIPLAYER)
+            setShowStartModal(false);
+
+            setSelectedSpace((prev) =>
+              prev
+                ? newState.spaces.find((s) => s.index === prev.index) || null
+                : null,
+            );
+          },
+          (msg) => {
+            setNotification(msg);
+          },
+        );
+
         // if (isMounted) setSignalRConnected(true);
         setSignalRConnected(true);
       } catch (err) {
@@ -92,6 +110,8 @@ export default function App() {
     }
 
     init();
+
+    // cleaning up. when component unmounted
     return () => {
       isMounted = false;
     };
@@ -143,16 +163,14 @@ export default function App() {
             }}
           >
             <span>Playing as:</span>
-            {/* <strong style={{ color: "#38bdf8" }}>
-              {gameState.players.find((p) => p.id === myPlayerId)?.name ||
-                `Player ${myPlayerId}`}
-            </strong> */}
+
             <strong style={{ color: "#38bdf8" }}>
               {myPlayerId === 1
                 ? "👑 Host (Player 1)"
                 : gameState.players.find((p) => p.id === myPlayerId)?.name ||
                   `Player ${myPlayerId}`}
             </strong>
+
             <button
               onClick={() => setMyPlayerId(null)}
               style={{
@@ -209,6 +227,34 @@ export default function App() {
           }}
         >
           {errorMessage}
+        </div>
+      )}
+
+      {/* NOTIFICATION */}
+      {notification && (
+        <div
+          style={{
+            position: "fixed",
+            top: 70,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(15, 23, 42, 0.92)",
+            color: "#38bdf8",
+            border: "1px solid rgba(56, 189, 248, 0.4)",
+            backdropFilter: "blur(8px)",
+            padding: "8px 20px",
+            borderRadius: 24,
+            fontWeight: 600,
+            fontSize: "0.9rem",
+            zIndex: 220,
+            boxShadow: "0 8px 25px rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            pointerEvents: "none",
+          }}
+        >
+          <span>{notification}</span>
         </div>
       )}
 
@@ -329,7 +375,7 @@ export default function App() {
                 Switch Role
               </button>
             </>
-                    ) : (
+          ) : (
             /* Case C: Fresh visitor (Incognito or Phone before match starts) */
             <>
               <button
