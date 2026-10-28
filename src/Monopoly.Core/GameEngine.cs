@@ -604,7 +604,11 @@ namespace Monopoly.Core
         /// </summary>
         public bool SendMoney(IPlayer player, int amount)
         {
-            if (amount < 0 || player.Money < amount) return false;
+            if (player == null)
+            {
+                return false;
+            }
+            if (amount <= 0 || player.Money < amount) return false;
 
             player.Money -= amount;
             OnPlayerMoneyChanged?.Invoke(player);
@@ -617,7 +621,12 @@ namespace Monopoly.Core
         /// </summary>
         public bool SendMoney(IPlayer player, int amount, IPlayer otherPlayer)
         {
-            if (amount < 0 || player.Money < amount) return false;
+            if (player == null || otherPlayer == null)
+            {
+                return false;
+            }
+            
+            if (amount <= 0 || player.Money < amount) return false;
 
             player.Money -= amount;
             otherPlayer.Money += amount;
@@ -627,12 +636,17 @@ namespace Monopoly.Core
         }
 
         /// <summary>The player receives money from the Bank. The Bank has unlimited money.</summary>
-        public void ReceiveMoney(IPlayer player, int amount)
+        public bool ReceiveMoney(IPlayer player, int amount)
         {
-            if (amount < 0) return;
+            if (player == null)
+            {
+                return false;
+            }
+            if (amount <= 0) return false;
 
             player.Money += amount;
             OnPlayerMoneyChanged?.Invoke(player);
+            return true;
         }
 
         /// <summary>
