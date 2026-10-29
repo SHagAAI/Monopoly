@@ -1,5 +1,8 @@
 using Monopoly.Api.Hubs;
 using Monopoly.Api.Services;
+using Serilog;
+using Serilog.Events;
+using Serilog.Formatting.Json;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +36,23 @@ builder.Services.AddCors(options =>
     });
 });
 
+
+// LOGGER
+// SERILOG CONFIGURATION
+Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information)
+                // .WriteTo.File(new JsonFormatter(), "logs/monopolyLog.log", rollingInterval: RollingInterval.Day)
+                .CreateLogger();
+
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+     .WriteTo.File(new JsonFormatter(), "logs/monopolyLog.log", rollingInterval: RollingInterval.Day));
+
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -50,4 +70,13 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<GameHub>("/gamehub");
 
-app.Run();
+
+try
+{
+    app.Run();
+}
+catch (System.Exception)
+{
+
+    Log.CloseAndFlush();
+}

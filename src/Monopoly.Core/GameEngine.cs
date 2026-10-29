@@ -44,6 +44,10 @@ namespace Monopoly.Core
 
         private readonly ICardDeck _chanceDeck = new CardDeck();
         private readonly ICardDeck _communityChestDeck = new CardDeck();
+
+        // Inside GameEngine.cs:
+        public ICardDeck ChanceDeck => _chanceDeck;
+        public ICardDeck CommunityChestDeck => _communityChestDeck;
         // private bool _isGameOver;
 
         public GameStatus Status { get; private set; } = GameStatus.NotStarted;
@@ -88,7 +92,7 @@ namespace Monopoly.Core
         private IPlayer? _tradeSeller;
         private List<IProperty>? _tradeProperties;
 
-        
+
         private int _tradeOffer; // price for transaction
 
         // Event to notify the client/UI that an offer was made
@@ -118,7 +122,7 @@ namespace Monopoly.Core
         // private IProperty? _auctionProperty;
         // private IPlayer? _highestBidder;
         // private int _highestBid;
-        
+
         // Events for the React client
         public Action<IProperty>? OnAuctionStarted;
         public Action<IPlayer, int>? OnBidPlaced; // bidder, amount
@@ -374,7 +378,7 @@ namespace Monopoly.Core
 
                     // look for railroad infront, if none, then take the first raildroad
                     int nextRailroad = railroads.FirstOrDefault(r => r > currentIndex, railroads[0]);
-                    
+
                     int rrSteps = (nextRailroad - currentIndex + Board.Path.Count) % Board.Path.Count;
                     if (rrSteps == 0) rrSteps = Board.Path.Count;
 
@@ -625,7 +629,7 @@ namespace Monopoly.Core
             {
                 return false;
             }
-            
+
             if (amount <= 0 || player.Money < amount) return false;
 
             player.Money -= amount;
@@ -770,7 +774,7 @@ namespace Monopoly.Core
                 return false;
             }
 
-         
+
             // Must be double, but strictly less than 3 consecutive doubles
             return _doubleCount > 0 && _doubleCount < 3;
         }
@@ -1040,7 +1044,9 @@ namespace Monopoly.Core
             }
 
             // validation, to buy a property, the token should be on top of it
-            if (!_tokenPositions.TryGetValue(_playerTokens[player], out ISpace? currentSpace) || currentSpace.Property != property)
+            ISpace? currentSpace = GetPlayerPosition(player);
+            // if (!_tokenPositions.TryGetValue(_playerTokens[player], out ISpace? currentSpace) || currentSpace.Property != property)
+            if (currentSpace!.Property != property)
             {
                 return false;
             }
@@ -1104,23 +1110,23 @@ namespace Monopoly.Core
                     int railroadsOwned = _propertyOwners.Count(kvp =>
                         kvp.Value == owner && kvp.Key.PropertyType == PropertyType.Railroad);
 
-                    if (railroadsOwned <= 0)
+                    // if (railroadsOwned == 0)
+                    // {
+                    //     rent = 0;
+                    // }
+                    // else
+                    // {
+
+
+                    int[] railroadRents = [25, 50, 100, 200];
+                    rent = railroadRents[railroadsOwned - 1];
+                    // rent = railroadRents[Math.Clamp(railroadsOwned - 1, 0, 3)];
+
+                    if (fromCard)
                     {
-                        rent = 0;
+                        rent *= 2;
                     }
-                    else
-                    {
-
-
-                        int[] railroadRents = [25, 50, 100, 200];
-                        rent = railroadRents[railroadsOwned-1];
-                        // rent = railroadRents[Math.Clamp(railroadsOwned - 1, 0, 3)];
-
-                        if (fromCard)
-                        {
-                            rent *= 2;
-                        }
-                    }
+                    // }
                     break;
 
                 case PropertyType.Utility:
@@ -1665,7 +1671,7 @@ namespace Monopoly.Core
                     }
                     else
                     {
-                        HotelAmount += street.BuildingLevel; // Houses return to Bank
+                        HouseAmount += street.BuildingLevel; // Houses return to Bank
                     }
 
                     buildingRefundTotal += street.BuildingLevel * (street.HouseCost!.Value / 2);
@@ -1793,7 +1799,7 @@ namespace Monopoly.Core
         /// <summary>
         /// Records an unpaid obligation as a pending debt (creditor = null means owed to the Bank).
         /// </summary>
-        private void RecordDebt(IPlayer debtor, int amount, IPlayer? creditor)
+        public void RecordDebt(IPlayer debtor, int amount, IPlayer? creditor)
         {
 
             _pendingDebts.Add(new PendingDebts(debtor, creditor, amount));
